@@ -1,16 +1,27 @@
 <script setup lang="ts">
-import { onMounted, reactive, ref } from "vue";
+import { computed, onMounted, reactive, ref } from "vue";
 import { ElMessage } from "element-plus";
-import { Plus, Search, Refresh } from "@element-plus/icons-vue";
+import {
+  Plus,
+  Search,
+  Refresh,
+  User,
+  CircleCheck,
+  Calendar,
+  WarningFilled,
+  ArrowUp,
+} from "@element-plus/icons-vue";
 import { useAuth } from "../stores";
 import { api, query, fail, label, date, type Row } from "../api";
 import Status from "../components/Status.vue";
+import StatCard from "../components/StatCard.vue";
 const auth = useAuth(),
   rows = ref<Row[]>([]),
   total = ref(0),
   page = ref(1),
   loading = ref(false),
-  error = ref("");
+  error = ref(""),
+  stats = ref<Row>({});
 const filters = reactive({
   elderNo: "",
   birthMonth: "",
@@ -49,6 +60,28 @@ async function load() {
     loading.value = false;
   }
 }
+async function loadStats() {
+  try {
+    const month = new Date().getMonth() + 1;
+    const [all, vaccinated, birthdays] = await Promise.all([
+      api("/elders?pageSize=1"),
+      api("/elders?vaccinationStatus=COMPLETED&pageSize=1"),
+      api(`/elders?birthMonth=${month}&pageSize=1`),
+    ]);
+    stats.value = {
+      total: Number(all.total),
+      vaccinated: Number(vaccinated.total),
+      birthdays: Number(birthdays.total),
+    };
+  } catch {
+    /* 统计卡片失败不阻断主列表 */
+  }
+}
+const vaccinationRate = computed(() =>
+  stats.value.total
+    ? `${((stats.value.vaccinated / stats.value.total) * 100).toFixed(1)}%`
+    : "—",
+);
 function create() {
   editing.value = null;
   Object.assign(form, {
@@ -177,6 +210,7 @@ onMounted(async () => {
     fail(e);
   }
   await load();
+  await loadStats();
 });
 </script>
 <template>
@@ -193,6 +227,36 @@ onMounted(async () => {
       >登记老人</el-button
     >
   </div>
+  <section class="stat-tiles">
+    <StatCard
+      label="总人数"
+      :value="stats.total ?? '—'"
+      suffix="人"
+      :icon="User"
+      tone="blue"
+      hint="本人负责全部档案"
+    />
+    <StatCard
+      label="已接种疫苗"
+      :value="stats.vaccinated ?? '—'"
+      suffix="人"
+      :icon="CircleCheck"
+      tone="green"
+      :hint="`接种率 ${vaccinationRate}`"
+      hint-tone="up"
+      :hint-icon="ArrowUp"
+    />
+    <StatCard
+      label="本月生日"
+      :value="stats.birthdays ?? '—'"
+      suffix="人"
+      :icon="Calendar"
+      tone="gold"
+      hint="需发送生日关怀"
+      hint-tone="warn"
+      :hint-icon="WarningFilled"
+    />
+  </section>
   <section class="panel">
     <div class="toolbar">
       <el-input

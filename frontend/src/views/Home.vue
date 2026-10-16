@@ -3,6 +3,14 @@ import { onMounted, ref } from "vue";
 import { useAuth } from "../stores";
 import { api, fail, date, type Row } from "../api";
 import Status from "../components/Status.vue";
+import StatCard from "../components/StatCard.vue";
+import {
+  User,
+  Bell,
+  Timer,
+  WarningFilled,
+  Avatar,
+} from "@element-plus/icons-vue";
 const auth = useAuth(),
   stats = ref<Row>({}),
   tasks = ref<Row[]>([]),
@@ -58,32 +66,53 @@ onMounted(load);
     :closable="false"
     class="mb"
   />
-  <section v-loading="loading" class="stat-grid">
-    <article v-if="auth.can('elder:read')" class="stat-card">
-      <span>本人负责老人</span
-      ><strong>{{ stats.elders ?? "—" }}<small>人</small></strong>
-      <p>档案信息与服务需求</p>
-    </article>
-    <article v-if="auth.can('notice:read')" class="stat-card">
-      <span>本人通知对象</span
-      ><strong>{{ stats.notices ?? "—" }}<small>条</small></strong>
-      <p>按每位老人分别记录</p>
-    </article>
-    <article v-if="auth.can('followup:read')" class="stat-card">
-      <span>待处理跟进</span
-      ><strong>{{ stats.pending ?? "—" }}<small>项</small></strong>
-      <p>及时处理，保障服务闭环</p>
-    </article>
-    <article v-if="auth.can('followup:read')" class="stat-card accent">
-      <span>逾期待跟进</span
-      ><strong>{{ stats.overdue ?? "—" }}<small>项</small></strong>
-      <p>包含待处理和处理中的任务</p>
-    </article>
-    <article v-if="auth.can('system:user:manage')" class="stat-card">
-      <span>本社区工作人员</span
-      ><strong>{{ stats.users ?? "—" }}<small>位</small></strong>
-      <p>含启用及停用的应用账号</p>
-    </article>
+  <section v-loading="loading" class="stat-tiles">
+    <StatCard
+      v-if="auth.can('elder:read')"
+      label="本人负责老人"
+      :value="stats.elders ?? '—'"
+      suffix="人"
+      :icon="User"
+      tone="blue"
+      hint="档案信息与服务需求"
+    />
+    <StatCard
+      v-if="auth.can('notice:read')"
+      label="本人通知对象"
+      :value="stats.notices ?? '—'"
+      suffix="条"
+      :icon="Bell"
+      tone="brand"
+      hint="按每位老人分别记录"
+    />
+    <StatCard
+      v-if="auth.can('followup:read')"
+      label="待处理跟进"
+      :value="stats.pending ?? '—'"
+      suffix="项"
+      :icon="Timer"
+      tone="gold"
+      hint="及时处理，保障服务闭环"
+    />
+    <StatCard
+      v-if="auth.can('followup:read')"
+      label="逾期待跟进"
+      :value="stats.overdue ?? '—'"
+      suffix="项"
+      :icon="WarningFilled"
+      tone="red"
+      hint="包含待处理和处理中的任务"
+      hint-tone="danger"
+    />
+    <StatCard
+      v-if="auth.can('system:user:manage')"
+      label="本社区工作人员"
+      :value="stats.users ?? '—'"
+      suffix="位"
+      :icon="Avatar"
+      tone="green"
+      hint="含启用及停用的应用账号"
+    />
   </section>
   <div class="home-grid">
     <section class="panel">

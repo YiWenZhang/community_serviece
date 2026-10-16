@@ -1,16 +1,26 @@
 <script setup lang="ts">
-import { onMounted, reactive, ref } from "vue";
+import { computed, onMounted, reactive, ref } from "vue";
 import { ElMessage } from "element-plus";
+import {
+  Tickets,
+  Timer,
+  RefreshRight,
+  CircleCheckFilled,
+  WarningFilled,
+  ArrowUp,
+} from "@element-plus/icons-vue";
 import { useAuth } from "../stores";
 import { api, query, fail, date, label, idempotency, type Row } from "../api";
 import Status from "../components/Status.vue";
 import AttemptFields from "../components/AttemptFields.vue";
+import StatCard from "../components/StatCard.vue";
 const auth = useAuth(),
   rows = ref<Row[]>([]),
   page = ref(1),
   total = ref(0),
   loading = ref(false),
-  error = ref("");
+  error = ref(""),
+  stats = ref<Row>({});
 const filters = reactive({ status: "PENDING", overdue: false });
 const open = ref(false),
   detailOpen = ref(false),
@@ -40,6 +50,31 @@ async function load() {
     loading.value = false;
   }
 }
+async function loadStats() {
+  try {
+    const [all, pending, processing, completed, overdue] = await Promise.all([
+      api("/followups?pageSize=1"),
+      api("/followups?status=PENDING&pageSize=1"),
+      api("/followups?status=PROCESSING&pageSize=1"),
+      api("/followups?status=COMPLETED&pageSize=1"),
+      api("/followups?overdue=true&pageSize=1"),
+    ]);
+    stats.value = {
+      total: Number(all.total),
+      pending: Number(pending.total),
+      processing: Number(processing.total),
+      completed: Number(completed.total),
+      overdue: Number(overdue.total),
+    };
+  } catch {
+    /* 统计卡片失败不阻断主列表 */
+  }
+}
+const completionRate = computed(() =>
+  stats.value.total
+    ? `${((stats.value.completed / stats.value.total) * 100).toFixed(1)}%`
+    : "—",
+);
 async function show(row: Row) {
   try {
     detail.value = await api(`/followups/${row.id}`);
@@ -126,7 +161,10 @@ async function save() {
     saving.value = false;
   }
 }
-onMounted(load);
+onMounted(async () => {
+  await load();
+  await loadStats();
+});
 </script>
 <template>
   <div class="page-heading">
@@ -136,6 +174,46 @@ onMounted(load);
     </div>
     <el-button @click="load">刷新任务</el-button>
   </div>
+  <section class="stat-tiles">
+    <StatCard
+      label="跟进任务总数"
+      :value="stats.total ?? '—'"
+      suffix="条"
+      :icon="Tickets"
+      tone="blue"
+      hint="全部跟进任务"
+    />
+    <StatCard
+      label="待处理任务"
+      :value="stats.pending ?? '—'"
+      suffix="条"
+      :icon="Timer"
+      tone="gold"
+      :hint="
+        stats.overdue ? `其中 ${stats.overdue} 项已逾期` : '暂无逾期任务'
+      "
+      hint-tone="warn"
+      :hint-icon="WarningFilled"
+    />
+    <StatCard
+      label="处理中任务"
+      :value="stats.processing ?? '—'"
+      suffix="条"
+      :icon="RefreshRight"
+      tone="brand"
+      hint="正在跟进处理"
+    />
+    <StatCard
+      label="已完成任务"
+      :value="stats.completed ?? '—'"
+      suffix="条"
+      :icon="CircleCheckFilled"
+      tone="green"
+      :hint="`完成率 ${completionRate}`"
+      hint-tone="up"
+      :hint-icon="ArrowUp"
+    />
+  </section>
   <section class="panel">
     <div class="toolbar">
       <el-select

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, onBeforeUnmount, ref } from "vue";
+import { computed, onMounted, onBeforeUnmount, ref } from "vue";
 import { ElMessage } from "element-plus";
 import { Download } from "@element-plus/icons-vue";
 import {
@@ -13,6 +13,8 @@ import {
 } from "../api";
 import { useAuth } from "../stores";
 import Status from "../components/Status.vue";
+import BarChart from "../components/BarChart.vue";
+import DonutChart from "../components/DonutChart.vue";
 const auth = useAuth(),
   month = ref(new Date().toLocaleDateString("sv-SE").slice(0, 7)),
   data = ref<Row | null>(null),
@@ -39,6 +41,41 @@ const percent = (v: any) =>
   v === null || v === undefined
     ? "无有效样本"
     : `${(Number(v) * 100).toFixed(2)}%`;
+const shortMetricNames: Row = {
+  NOTICE_COVERAGE: "通知覆盖",
+  SERVICE_CLOSURE: "服务闭环",
+  SATISFACTION: "满意度",
+  FEEDBACK_RATE: "反馈率",
+  FOLLOWUP_ON_TIME: "按期跟进",
+};
+const coreBars = computed<{ label: string; value: number }[]>(() =>
+  [
+    "NOTICE_COVERAGE",
+    "SERVICE_CLOSURE",
+    "SATISFACTION",
+    "FEEDBACK_RATE",
+    "FOLLOWUP_ON_TIME",
+  ].map((code) => {
+    const m = (data.value?.metrics || []).find(
+      (x: Row) => x.code === code && x.dimension === "ALL",
+    );
+    return {
+      label: shortMetricNames[code],
+      value: m && m.value != null ? Number(m.value) * 100 : 0,
+    };
+  }),
+);
+const channelData = computed<{ label: string; value: number }[]>(() =>
+  (data.value?.metrics || [])
+    .filter((m: Row) => m.code === "CHANNEL_USAGE")
+    .map((m: Row) => ({
+      label: dimensionNames[m.dimension] || m.dimension,
+      value: Number(m.numerator),
+    })),
+);
+const channelTotal = computed(() =>
+  channelData.value.reduce((sum, d) => sum + d.value, 0),
+);
 async function load() {
   if (!month.value) return;
   loading.value = true;
@@ -154,6 +191,35 @@ onBeforeUnmount(() => {
       比例按实际有效样本计算
     </p>
     <el-alert v-if="error" :title="error" type="error" :closable="false" />
+  </section>
+  <section v-if="data" class="chart-grid">
+    <article class="panel">
+      <div class="panel-head">
+        <div>
+          <h2>核心指标达成率</h2>
+          <p>通知覆盖、服务闭环、满意度、反馈率与按期跟进</p>
+        </div>
+      </div>
+      <div class="chart-body">
+        <BarChart :data="coreBars" suffix="%" :max="100" />
+      </div>
+    </article>
+    <article class="panel">
+      <div class="panel-head">
+        <div>
+          <h2>通知渠道使用占比</h2>
+          <p>按触达方式统计当月尝试次数</p>
+        </div>
+      </div>
+      <div class="chart-body">
+        <DonutChart
+          v-if="channelTotal"
+          :data="channelData"
+          center-label="触达次数"
+        />
+        <p v-else class="chart-empty">本月暂无触达记录</p>
+      </div>
+    </article>
   </section>
   <section v-loading="loading" class="metrics-grid">
     <article

@@ -1,7 +1,15 @@
 <script setup lang="ts">
-import { onMounted, reactive, ref } from "vue";
+import { computed, onMounted, reactive, ref } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
-import { Plus } from "@element-plus/icons-vue";
+import {
+  Plus,
+  Bell,
+  Timer,
+  CircleCheckFilled,
+  WarningFilled,
+  CircleCloseFilled,
+  ArrowUp,
+} from "@element-plus/icons-vue";
 import { useAuth } from "../stores";
 import {
   api,
@@ -15,6 +23,7 @@ import {
 } from "../api";
 import Status from "../components/Status.vue";
 import AttemptFields from "../components/AttemptFields.vue";
+import StatCard from "../components/StatCard.vue";
 const auth = useAuth(),
   tab = ref("recipients"),
   batches = ref<Row[]>([]),
@@ -23,7 +32,8 @@ const auth = useAuth(),
   total = ref(0),
   loading = ref(false),
   error = ref(""),
-  saving = ref(false);
+  saving = ref(false),
+  stats = ref<Row>({});
 const createOpen = ref(false),
   elderOptions = ref<Row[]>([]),
   draft = reactive<Row>({
@@ -65,6 +75,36 @@ async function load() {
     loading.value = false;
   }
 }
+async function loadStats() {
+  try {
+    const [all, pending, confirmed, unreachable, refused] = await Promise.all([
+      api("/notice-recipients?pageSize=1"),
+      api("/notice-recipients?receiptStatus=PENDING&pageSize=1"),
+      api("/notice-recipients?receiptStatus=CONFIRMED&pageSize=1"),
+      api("/notice-recipients?receiptStatus=UNREACHABLE&pageSize=1"),
+      api("/notice-recipients?receiptStatus=REFUSED&pageSize=1"),
+    ]);
+    stats.value = {
+      total: Number(all.total),
+      pending: Number(pending.total),
+      confirmed: Number(confirmed.total),
+      unreachable: Number(unreachable.total),
+      refused: Number(refused.total),
+    };
+  } catch {
+    /* 统计卡片失败不阻断主列表 */
+  }
+}
+const confirmRate = computed(() =>
+  stats.value.total
+    ? `${((stats.value.confirmed / stats.value.total) * 100).toFixed(1)}%`
+    : "—",
+);
+const refusedRate = computed(() =>
+  stats.value.total
+    ? `${((stats.value.refused / stats.value.total) * 100).toFixed(1)}%`
+    : "—",
+);
 async function create() {
   try {
     const result = await api("/elders?pageSize=100");
@@ -261,6 +301,7 @@ onMounted(async () => {
     fail(e);
   }
   await load();
+  await loadStats();
 });
 </script>
 <template>
@@ -277,6 +318,52 @@ onMounted(async () => {
       >新建通知</el-button
     >
   </div>
+  <section class="stat-tiles">
+    <StatCard
+      label="通知总数"
+      :value="stats.total ?? '—'"
+      suffix="条"
+      :icon="Bell"
+      tone="blue"
+      hint="本人负责通知对象"
+    />
+    <StatCard
+      label="待发送"
+      :value="stats.pending ?? '—'"
+      suffix="条"
+      :icon="Timer"
+      tone="gold"
+      hint="等待首次触达"
+      hint-tone="warn"
+    />
+    <StatCard
+      label="已确认接收"
+      :value="stats.confirmed ?? '—'"
+      suffix="条"
+      :icon="CircleCheckFilled"
+      tone="green"
+      :hint="`接收率 ${confirmRate}`"
+      hint-tone="up"
+      :hint-icon="ArrowUp"
+    />
+    <StatCard
+      label="未联系上"
+      :value="stats.unreachable ?? '—'"
+      suffix="条"
+      :icon="WarningFilled"
+      tone="red"
+      hint="需跟进处理"
+      hint-tone="danger"
+    />
+    <StatCard
+      label="拒绝接收"
+      :value="stats.refused ?? '—'"
+      suffix="条"
+      :icon="CircleCloseFilled"
+      tone="gray"
+      :hint="`占比 ${refusedRate}`"
+    />
+  </section>
   <section class="panel">
     <el-tabs
       v-model="tab"
