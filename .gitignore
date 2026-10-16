@@ -1,0 +1,39 @@
+# 本机设计过程、隔离数据库及验证临时文件
+/.design-work/
+
+# 依赖及构建产物
+**/node_modules/
+**/dist/
+**/target/
+**/__pycache__/
+*.pyc
+
+# 本机运行数据、上传附件、日志及导入状态
+/backend/storage/
+/backend/logs/
+/database/local-import-status.json
+*.log
+*.pid
+*.hprof
+
+# 本机配置与凭据；示例配置可提交
+.env
+.env.*
+!.env.example
+!.env.*.example
+*.local
+/backend/config/application-local.yml
+/backend/config/application-production.yml
+*.pem
+*.key
+*.p12
+*.pfx
+
+# IDE及系统文件
+.idea/
+.vscode/
+*.iml
+.DS_Store
+Thumbs.db
+Desktop.ini
+~$*

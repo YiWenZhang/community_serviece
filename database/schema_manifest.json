@@ -1,0 +1,161 @@
+{
+  "database": "community_elder_service",
+  "table_count": 31,
+  "tables": [
+    {
+      "name": "community",
+      "comment": "社区",
+      "seed_rows": 1
+    },
+    {
+      "name": "grid",
+      "comment": "社区网格",
+      "seed_rows": 1
+    },
+    {
+      "name": "sys_user",
+      "comment": "工作人员账号 不保存手机号",
+      "seed_rows": 3
+    },
+    {
+      "name": "sys_role",
+      "comment": "角色",
+      "seed_rows": 3
+    },
+    {
+      "name": "sys_permission",
+      "comment": "接口及操作权限",
+      "seed_rows": 22
+    },
+    {
+      "name": "sys_user_role",
+      "comment": "用户角色关系",
+      "seed_rows": 3
+    },
+    {
+      "name": "sys_role_permission",
+      "comment": "角色权限关系",
+      "seed_rows": 22
+    },
+    {
+      "name": "elder_no_sequence",
+      "comment": "老人编号年度序列 禁止MAX加1",
+      "seed_rows": 1
+    },
+    {
+      "name": "elder_profile",
+      "comment": "老人脱敏档案 无姓名证件手机及家庭地址",
+      "seed_rows": 3
+    },
+    {
+      "name": "elder_assignment_history",
+      "comment": "老人归属移交历史",
+      "seed_rows": 3
+    },
+    {
+      "name": "service_need",
+      "comment": "服务需求字典",
+      "seed_rows": 3
+    },
+    {
+      "name": "elder_service_need",
+      "comment": "老人服务需求关系",
+      "seed_rows": 4
+    },
+    {
+      "name": "vaccine_product",
+      "comment": "疫苗产品字典",
+      "seed_rows": 2
+    },
+    {
+      "name": "vaccine_campaign",
+      "comment": "疫苗年度周期及接种阶段",
+      "seed_rows": 1
+    },
+    {
+      "name": "elder_vaccine_status",
+      "comment": "老人具体疫苗周期资格及当前接种状态",
+      "seed_rows": 3
+    },
+    {
+      "name": "vaccination_record",
+      "comment": "资格及接种历史事实 纠错追加记录",
+      "seed_rows": 4
+    },
+    {
+      "name": "notice_rule",
+      "comment": "通知自动生成规则",
+      "seed_rows": 1
+    },
+    {
+      "name": "notice",
+      "comment": "通知批次 内容与名单激活后冻结",
+      "seed_rows": 2
+    },
+    {
+      "name": "notice_recipient",
+      "comment": "每位老人对应通知对象 与通知批次分离",
+      "seed_rows": 2
+    },
+    {
+      "name": "delivery_attempt",
+      "comment": "触达记录 短信技术回执不等于人工确认",
+      "seed_rows": 3
+    },
+    {
+      "name": "file_object",
+      "comment": "私有文件元数据 非AI凭证和报表共用",
+      "seed_rows": 0
+    },
+    {
+      "name": "delivery_attachment",
+      "comment": "触达凭证关联 上门签字及公告照片",
+      "seed_rows": 0
+    },
+    {
+      "name": "notice_recipient_event",
+      "comment": "通知接收及闭环状态历史",
+      "seed_rows": 5
+    },
+    {
+      "name": "followup_task",
+      "comment": "跟进任务 未完成同对象同类型唯一",
+      "seed_rows": 2
+    },
+    {
+      "name": "followup_record",
+      "comment": "跟进执行记录",
+      "seed_rows": 1
+    },
+    {
+      "name": "service_feedback",
+      "comment": "满意度反馈版本 历史不覆盖",
+      "seed_rows": 1
+    },
+    {
+      "name": "report_job",
+      "comment": "报表冻结及导出作业",
+      "seed_rows": 0
+    },
+    {
+      "name": "report_metric",
+      "comment": "报表指标快照 保留分子分母",
+      "seed_rows": 0
+    },
+    {
+      "name": "audit_log",
+      "comment": "操作审计 仅保存脱敏白名单摘要",
+      "seed_rows": 1
+    },
+    {
+      "name": "job_run",
+      "comment": "持久异步作业及租约 不含AI任务类型",
+      "seed_rows": 0
+    },
+    {
+      "name": "outbox_event",
+      "comment": "事务外发事件 允许至少一次投递",
+      "seed_rows": 0
+    }
+  ]
+}

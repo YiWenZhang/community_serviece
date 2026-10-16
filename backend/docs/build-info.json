@@ -1,0 +1,15 @@
+{
+  "service": "community-service",
+  "version": "1.0.0",
+  "java_target": 21,
+  "spring_boot": "4.1.1",
+  "sha256": "db6deb996e3db5439d260016b88ca19b734d4fb03494f75894d614222c6a75e7",
+  "size_bytes": 55673543,
+  "java_source_files": 33,
+  "maven_tests": 17,
+  "mysql_integration_tests": 14,
+  "http_checks": 13,
+  "http_operations": 49,
+  "existing_database_schema_unchanged": true,
+  "frontend_browser_checks": 11
+}

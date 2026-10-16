@@ -1,0 +1,234 @@
+<script setup lang="ts">
+import { onMounted, reactive, ref } from "vue";
+import { useRouter } from "vue-router";
+import { ElMessage } from "element-plus";
+import { Plus } from "@element-plus/icons-vue";
+import { api, query, fail, type Row } from "../api";
+import { useAuth } from "../stores";
+import Status from "../components/Status.vue";
+const auth = useAuth(),
+  router = useRouter(),
+  rows = ref<Row[]>([]),
+  roles = ref<Row[]>([]),
+  page = ref(1),
+  total = ref(0),
+  loading = ref(false),
+  error = ref(""),
+  open = ref(false),
+  saving = ref(false),
+  editing = ref<Row | null>(null);
+const form = reactive<Row>({
+  username: "",
+  displayName: "",
+  password: "",
+  status: "ACTIVE",
+  roleIds: [],
+});
+async function load() {
+  loading.value = true;
+  error.value = "";
+  try {
+    const r = await api("/users?" + query({ page: page.value, pageSize: 20 }));
+    rows.value = r.items;
+    total.value = Number(r.total);
+  } catch (e) {
+    error.value = (e as Error).message;
+  } finally {
+    loading.value = false;
+  }
+}
+function create() {
+  editing.value = null;
+  Object.assign(form, {
+    username: "",
+    displayName: "",
+    password: "",
+    status: "ACTIVE",
+    roleIds: [],
+  });
+  open.value = true;
+}
+function edit(row: Row) {
+  editing.value = { ...row };
+  Object.assign(form, {
+    username: row.username,
+    displayName: row.displayName,
+    password: "",
+    status: row.status,
+    roleIds: [...(row.roleIds || [])],
+  });
+  open.value = true;
+}
+const roleName = (id: string) =>
+  roles.value.find((r) => r.id === id)?.name || id;
+async function save() {
+  if (saving.value) return;
+  if (!form.username || !form.displayName || !form.roleIds.length)
+    return ElMessage.warning("请填写账号、显示名并选择角色");
+  if (
+    (!editing.value ||
+      (editing.value.status === "DISABLED" && form.status === "ACTIVE")) &&
+    !form.password
+  )
+    return ElMessage.warning("新账号或启用停用账号时，请设置应用密码");
+  if (form.password && (form.password.length < 12 || form.password.length > 72))
+    return ElMessage.warning("应用密码需 12 至 72 个字符");
+  saving.value = true;
+  try {
+    if (editing.value) {
+      if (form.password) {
+        await api(`/users/${editing.value.id}/password`, "POST", {
+          version: editing.value.version,
+          password: form.password,
+        });
+        editing.value.version++;
+        form.password = "";
+      }
+      await api(`/users/${editing.value.id}`, "PATCH", {
+        version: editing.value.version,
+        displayName: form.displayName,
+        status: form.status,
+        roleIds: form.roleIds,
+      });
+      if (editing.value.id === auth.user?.id) {
+        open.value = false;
+        auth.user = null;
+        await router.push("/login");
+        ElMessage.success("自己的账号权限已更新，请重新登录");
+        return;
+      }
+    } else
+      await api("/users", "POST", {
+        username: form.username,
+        displayName: form.displayName,
+        password: form.password,
+        roleIds: form.roleIds,
+      });
+    ElMessage.success("工作人员账号已保存");
+    form.password = "";
+    open.value = false;
+    await load();
+  } catch (e) {
+    fail(e);
+  } finally {
+    saving.value = false;
+  }
+}
+onMounted(async () => {
+  try {
+    roles.value = await api("/roles");
+  } catch (e) {
+    fail(e);
+  }
+  await load();
+});
+</script>
+<template>
+  <div class="page-heading">
+    <div>
+      <h1>用户管理</h1>
+      <p>管理本社区的应用账号，按岗位授予服务权限。</p>
+    </div>
+    <el-button type="primary" :icon="Plus" @click="create"
+      >新增工作人员</el-button
+    >
+  </div>
+  <el-alert
+    title="首次体验：编辑 grid_demo 与 stats_demo，设置应用密码并启用。网格员处理原示例档案，统计员查看社区汇总。"
+    type="info"
+    :closable="false"
+    show-icon
+    class="user-note"
+  />
+  <section class="panel">
+    <el-alert
+      v-if="error"
+      :title="error"
+      type="error"
+      :closable="false"
+      class="mb"
+    /><el-table v-loading="loading" :data="rows" empty-text="暂无工作人员"
+      ><el-table-column
+        prop="username"
+        label="应用账号"
+        min-width="160"
+      /><el-table-column
+        prop="displayName"
+        label="显示名称"
+        min-width="150"
+      /><el-table-column label="当前角色" min-width="190"
+        ><template #default="{ row }">{{
+          (row.roleIds || []).map(roleName).join(" / ") || "无角色"
+        }}</template></el-table-column
+      ><el-table-column label="状态" width="110"
+        ><template #default="{ row }"
+          ><Status :value="row.status" /></template></el-table-column
+      ><el-table-column label="操作" min-width="170"
+        ><template #default="{ row }"
+          ><el-button link type="primary" @click="edit(row)"
+            >编辑 / 设置密码</el-button
+          ></template
+        ></el-table-column
+      ></el-table
+    >
+    <div class="pager">
+      <el-pagination
+        v-model:current-page="page"
+        :page-size="20"
+        :total="total"
+        layout="total,prev,pager,next"
+        @current-change="load"
+      />
+    </div>
+  </section>
+  <el-dialog
+    v-model="open"
+    :title="editing ? '编辑工作人员' : '新增工作人员'"
+    width="630px"
+    destroy-on-close
+    @closed="form.password = ''"
+    ><p class="hint">
+      应用密码与 MySQL
+      密码不同。修改用户密码、角色或状态后，该用户原会话会失效。管理员默认不读取老人业务明细。
+    </p>
+    <el-form label-position="top"
+      ><div class="form-grid">
+        <el-form-item label="应用账号 *"
+          ><el-input
+            v-model="form.username"
+            :disabled="!!editing"
+            maxlength="64"
+            autocomplete="off" /></el-form-item
+        ><el-form-item label="显示名称 *"
+          ><el-input v-model="form.displayName" maxlength="64" /></el-form-item
+        ><el-form-item
+          :label="editing ? '设置新应用密码（留空不改）' : '应用密码 *'"
+          class="span-2"
+          ><el-input
+            v-model="form.password"
+            type="password"
+            show-password
+            autocomplete="new-password"
+            placeholder="至少 12 个字符"
+            maxlength="72" /></el-form-item
+        ><el-form-item v-if="editing" label="账号状态"
+          ><el-select v-model="form.status"
+            ><el-option value="ACTIVE" label="启用" /><el-option
+              value="DISABLED"
+              label="停用" /></el-select></el-form-item
+        ><el-form-item label="角色 *" class="span-2"
+          ><el-checkbox-group v-model="form.roleIds"
+            ><el-checkbox v-for="r in roles" :key="r.id" :value="r.id">{{
+              r.name
+            }}</el-checkbox></el-checkbox-group
+          ></el-form-item
+        >
+      </div></el-form
+    ><template #footer
+      ><el-button @click="open = false">取消</el-button
+      ><el-button type="primary" :loading="saving" @click="save"
+        >保存账号</el-button
+      ></template
+    ></el-dialog
+  >
+</template>

@@ -1,0 +1,8 @@
+{
+  "warning": "仅供虚构演示数据，不可用作生产密钥；不含MySQL登录密码。",
+  "key_version": 1,
+  "cipher_format": "nonce[12] || AESGCM ciphertext || tag[16]，无AAD",
+  "aes256_key_hex": "32cc55ecc18de7f577fb92762a0a720abe3e64cbe9ee27f0f0e1a49fdfbb2bfa",
+  "hmac_sha256_key_hex": "30b8bbcd15558980453717358c4138a93c605a8a0693fdb32ecca0da79425d2b",
+  "number_normalization": "uppercase ASCII SH-L-2026-001 through SH-L-2026-003"
+}
