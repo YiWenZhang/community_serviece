@@ -16,7 +16,12 @@ public class ElderService {
       @Pattern(regexp = "MALE|FEMALE|UNKNOWN") @NotNull String sex,
       @Pattern(regexp = "\\d{4}-(0[1-9]|1[0-2])") @NotNull String birthMonth,
       @Size(max = 500) String remark,
-      @NotNull Set<Long> needIds) {}
+      @NotNull Set<Long> needIds,
+      Long ownerUserId) {
+    public Draft(Long gridId, String sex, String birthMonth, String remark, Set<Long> needIds) {
+      this(gridId, sex, birthMonth, remark, needIds, null);
+    }
+  }
 
   public record Edit(
       @Min(0) int version,
@@ -27,7 +32,12 @@ public class ElderService {
       @Min(0) int version,
       @NotNull Long gridId,
       @NotNull Long ownerUserId,
-      @NotBlank @Size(max = 300) String reason) {}
+      @NotBlank @Size(max = 300) String reason,
+      Long communityId) {
+    public Transfer(int version, Long gridId, Long ownerUserId, String reason) {
+      this(version, gridId, ownerUserId, reason, null);
+    }
+  }
 
   public record Vaccine(
       @Min(0) int version,
@@ -57,7 +67,9 @@ public class ElderService {
   public Map<String, Object> owned(Actor a, long id, boolean lock) {
     return db.one(
         "SELECT * FROM elder_profile WHERE id=:id AND community_id=:community AND"
-            + " owner_user_id=:actor"
+            + " (owner_user_id=:actor OR "
+            + a.admin()
+            + ")"
             + (lock ? " FOR UPDATE" : ""),
         Db.p("id", id, "community", a.communityId(), "actor", a.id()));
   }
@@ -98,7 +110,9 @@ public class ElderService {
     a.require("elder:read");
     var p = a.scope();
     String where =
-        " FROM elder_profile e WHERE e.community_id=:community AND e.owner_user_id=:actor";
+        " FROM elder_profile e WHERE e.community_id=:community AND (e.owner_user_id=:actor OR "
+            + a.admin()
+            + ")";
     if (elderNo != null && !elderNo.isBlank()) {
       where += " AND e.elder_no_hash=:hash";
       p.put("hash", crypto.hash(elderNo.trim()));
@@ -132,22 +146,24 @@ public class ElderService {
   @Transactional
   public Object create(Actor a, Draft b) {
     a.require("elder:create");
-    auth.sameCommunityUser(a, a.id(), true);
+    long owner = b.ownerUserId() == null ? a.id() : b.ownerUserId();
+    Problem.require(a.admin() || owner == a.id(), "网格员只能登记本人负责的老人");
+    auth.sameCommunityUser(a, owner, true);
     validate(a, b);
     int year = Year.now(ZoneId.of("Asia/Shanghai")).getValue();
     db.update(
-        "INSERT INTO elder_no_sequence(community_id,register_year,next_value)"
-            + " VALUES(:community,:year,1) ON DUPLICATE KEY UPDATE id=id",
+        "INSERT INTO elder_global_sequence(register_year,next_value) VALUES(:year,1) ON DUPLICATE"
+            + " KEY UPDATE register_year=register_year",
         Db.p("community", a.communityId(), "year", year));
     var seq =
         db.one(
-            "SELECT * FROM elder_no_sequence WHERE community_id=:community AND register_year=:year"
-                + " FOR UPDATE",
+            "SELECT * FROM elder_global_sequence WHERE register_year=:year" + " FOR UPDATE",
             Db.p("community", a.communityId(), "year", year));
     long next = Db.id(seq, "next_value");
     db.update(
-        "UPDATE elder_no_sequence SET next_value=next_value+1,version=version+1 WHERE id=:id",
-        Db.p("id", seq.get("id")));
+        "UPDATE elder_global_sequence SET next_value=next_value+1,version=version+1 WHERE"
+            + " register_year=:year",
+        Db.p("year", year));
     String number = "SH-L-" + year + "-" + String.format(Locale.ROOT, "%03d", next);
     YearMonth birth = YearMonth.parse(b.birthMonth());
     long id =
@@ -159,7 +175,7 @@ public class ElderService {
                 "grid_id",
                 b.gridId(),
                 "owner_user_id",
-                a.id(),
+                owner,
                 "elder_no_cipher",
                 crypto.encrypt(number),
                 "elder_no_hash",
@@ -190,7 +206,7 @@ public class ElderService {
             "new_grid_id",
             b.gridId(),
             "new_owner_id",
-            a.id(),
+            owner,
             "effective_at",
             utc(),
             "reason",
@@ -213,7 +229,9 @@ public class ElderService {
         db.update(
             "UPDATE elder_profile SET"
                 + " grid_id=:grid,sex=:sex,birth_year=:y,birth_month=:m,remark=:remark,status=:status,info_updated_at=UTC_TIMESTAMP(3),version=version+1,updated_by=:actor"
-                + " WHERE id=:id AND owner_user_id=:actor AND community_id=:community AND"
+                + " WHERE id=:id AND (owner_user_id=:actor OR "
+                + a.admin()
+                + ") AND community_id=:community AND"
                 + " version=:v",
             Db.p(
                 "grid",
@@ -249,16 +267,43 @@ public class ElderService {
         db.one(
             "SELECT * FROM elder_profile WHERE id=:id AND community_id=:community FOR UPDATE",
             Db.p("id", id, "community", a.communityId()));
-    auth.sameCommunityUser(a, b.ownerUserId(), true);
+    var target = b.communityId() == null ? a : auth.inCommunity(a, b.communityId());
+    if (target.communityId() != a.communityId()) {
+      Problem.require(
+          db.count(
+                  "SELECT COUNT(*) FROM notice_recipient WHERE elder_id=:id AND workflow_status IN"
+                      + " ('OPEN','FOLLOWING')",
+                  Db.p("id", id))
+              == 0,
+          "跨社区移交前请先完成或取消未闭环通知；历史通知保留原社区");
+      Problem.require(
+          db.count(
+                  "SELECT COUNT(*) FROM followup_task t JOIN notice_recipient r ON"
+                      + " r.id=t.recipient_id WHERE r.elder_id=:id AND t.status IN"
+                      + " ('PENDING','PROCESSING')",
+                  Db.p("id", id))
+              == 0,
+          "跨社区移交前请先结束未完成跟进任务");
+      Problem.require(
+          db.count(
+                  "SELECT COUNT(*) FROM elder_profile WHERE community_id=:community AND"
+                      + " elder_no_hash=:hash",
+                  Db.p("community", target.communityId(), "hash", before.get("elder_no_hash")))
+              == 0,
+          "目标社区存在同编号档案，请先核实数据");
+    }
+    auth.sameCommunityUser(target, b.ownerUserId(), true);
     db.one(
         "SELECT id FROM grid WHERE id=:id AND community_id=:community AND status='ACTIVE'",
-        Db.p("id", b.gridId(), "community", a.communityId()));
+        Db.p("id", b.gridId(), "community", target.communityId()));
     Problem.changed(
         db.update(
             "UPDATE elder_profile SET"
-                + " grid_id=:grid,owner_user_id=:owner,version=version+1,updated_by=:actor,info_updated_at=UTC_TIMESTAMP(3)"
+                + " community_id=:target,grid_id=:grid,owner_user_id=:owner,version=version+1,updated_by=:actor,info_updated_at=UTC_TIMESTAMP(3)"
                 + " WHERE id=:id AND version=:v",
             Db.p(
+                "target",
+                target.communityId(),
                 "grid",
                 b.gridId(),
                 "owner",
@@ -302,7 +347,17 @@ public class ElderService {
         "ELDER_TRANSFERRED",
         "ELDER",
         id,
-        Db.p("from", before.get("owner_user_id"), "to", b.ownerUserId()));
+        Db.p(
+            "from",
+            before.get("owner_user_id"),
+            "to",
+            b.ownerUserId(),
+            "fromCommunity",
+            a.communityId(),
+            "toCommunity",
+            target.communityId(),
+            "reason",
+            b.reason()));
     return Db.p("id", id, "version", b.version() + 1);
   }
 

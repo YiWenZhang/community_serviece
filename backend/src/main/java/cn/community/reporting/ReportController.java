@@ -34,23 +34,40 @@ public class ReportController {
     return Api.ok(reports.enqueue(auth.current(), key, b));
   }
 
+  @GetMapping("/report-jobs")
+  public Object list(
+      @RequestParam(defaultValue = "1") int page, @RequestParam(defaultValue = "20") int pageSize) {
+    var a = auth.current();
+    a.require(a.globalReports() ? "report:read:community" : "report:read:own");
+    String where =
+        " FROM report_job r JOIN community c ON c.id=r.community_id WHERE ("
+            + a.globalReports()
+            + " OR (r.requested_by=:actor AND r.community_id=:community))";
+    return Api.ok(
+        db.page(
+            "SELECT"
+                + " r.id,r.status,r.format,r.period_start,r.output_file_id,r.error_summary,r.created_at,r.community_id,c.name"
+                + " AS community_name"
+                + where
+                + " ORDER BY r.id DESC",
+            "SELECT COUNT(*)" + where,
+            a.scope(),
+            page,
+            pageSize));
+  }
+
   @GetMapping("/report-jobs/{id}")
   @Operation(summary = "查询本人申请的月报状态与文件编号")
   public Object detail(@PathVariable long id) {
     var a = auth.current();
     var r =
         db.one(
-            "SELECT * FROM report_job WHERE id=:id AND community_id=:community AND"
-                + " requested_by=:actor",
-            Db.p("id", id, "community", a.communityId(), "actor", a.id()));
-    reports.owner(
-        a,
-        new ReportService.Query(
-            r.get("period_start").toString().substring(0, 7),
-            r.get("scope_owner_id") == null ? null : Db.id(r, "scope_owner_id"),
-            null,
-            null),
-        true);
+            "SELECT r.*,c.name AS community_name FROM report_job r JOIN community c ON"
+                + " c.id=r.community_id WHERE r.id=:id AND ("
+                + a.globalReports()
+                + " OR (r.requested_by=:actor AND r.community_id=:community))",
+            a.parameters("id", id));
+    a.require(a.globalReports() ? "report:read:community" : "report:read:own");
     return Api.ok(r);
   }
 }

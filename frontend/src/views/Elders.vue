@@ -32,6 +32,7 @@ const editOpen = ref(false),
   saving = ref(false),
   editing = ref<Row | null>(null);
 const form = reactive<Row>({
+  ownerUserId: "",
   gridId: "",
   sex: "UNKNOWN",
   birthMonth: "",
@@ -85,6 +86,9 @@ const vaccinationRate = computed(() =>
 function create() {
   editing.value = null;
   Object.assign(form, {
+    ownerUserId: auth.user?.roles?.includes("ADMIN")
+      ? auth.dictionaries.workers?.[0]?.id
+      : auth.user?.id,
     gridId: auth.dictionaries.grids[0]?.id || "",
     sex: "UNKNOWN",
     birthMonth: "",
@@ -118,6 +122,7 @@ async function save() {
   saving.value = true;
   try {
     const profile = {
+      ownerUserId: editing.value ? null : form.ownerUserId,
       gridId: form.gridId,
       sex: form.sex,
       birthMonth: form.birthMonth,
@@ -212,12 +217,63 @@ onMounted(async () => {
   await load();
   await loadStats();
 });
+
+const transferOpen = ref(false),
+  transferRow = ref<Row>({}),
+  targetWorkers = ref<Row[]>([]),
+  targetGrids = ref<Row[]>([]),
+  transferForm = reactive<Row>({
+    communityId: "",
+    gridId: "",
+    ownerUserId: "",
+    reason: "",
+  });
+async function targetChanged() {
+  try {
+    [targetWorkers.value, targetGrids.value] = await Promise.all([
+      api(`/communities/${transferForm.communityId}/workers`),
+      api(`/communities/${transferForm.communityId}/grids`),
+    ]);
+    transferForm.ownerUserId = targetWorkers.value[0]?.id || "";
+    transferForm.gridId = targetGrids.value[0]?.id || "";
+  } catch (e) {
+    fail(e);
+  }
+}
+async function transfer(row: Row) {
+  transferRow.value = row;
+  Object.assign(transferForm, { communityId: auth.communityId, reason: "" });
+  await targetChanged();
+  transferOpen.value = true;
+}
+async function saveTransfer() {
+  saving.value = true;
+  try {
+    await api(`/elders/${transferRow.value.id}/transfer`, "POST", {
+      ...transferForm,
+      version: transferRow.value.version,
+    });
+    transferOpen.value = false;
+    ElMessage.success("老人归属已调整，原负责人失去操作权限");
+    await load();
+  } catch (e) {
+    fail(e);
+  } finally {
+    saving.value = false;
+  }
+}
 </script>
 <template>
   <div class="page-heading">
     <div>
       <h1>老人档案</h1>
-      <p>维护本人负责的基础资料、服务需求与接种核验记录。</p>
+      <p>
+        {{
+          auth.user?.roles?.includes("ADMIN")
+            ? "管理当前社区全部老人，可调整社区与负责网格员。"
+            : "维护本人负责的基础资料、服务需求与接种核验记录。"
+        }}
+      </p>
     </div>
     <el-button
       v-if="auth.can('elder:create')"
@@ -323,6 +379,12 @@ onMounted(async () => {
       ><el-table-column label="操作" min-width="190"
         ><template #default="{ row }"
           ><el-button link type="primary" @click="show(row)">详情</el-button
+          ><el-button
+            v-if="auth.can('elder:transfer')"
+            link
+            type="primary"
+            @click="transfer(row)"
+            >调整归属</el-button
           ><el-button
             v-if="auth.can('elder:update')"
             link
@@ -475,6 +537,17 @@ onMounted(async () => {
     </p>
     <el-form label-position="top"
       ><div class="form-grid">
+        <el-form-item
+          v-if="!editing && auth.user?.roles?.includes('ADMIN')"
+          label="负责网格员 *"
+          class="span-2"
+          ><el-select v-model="form.ownerUserId"
+            ><el-option
+              v-for="w in auth.dictionaries.workers"
+              :key="w.id"
+              :label="`${w.displayName}（${w.username}）`"
+              :value="w.id" /></el-select
+        ></el-form-item>
         <el-form-item label="服务周期 *" class="span-2"
           ><el-select v-model="vaccineForm.campaignId" @change="selectCampaign"
             ><el-option
@@ -530,6 +603,50 @@ onMounted(async () => {
       ><el-button @click="vaccineOpen = false">取消</el-button
       ><el-button type="primary" :loading="saving" @click="saveVaccine"
         >保存核验记录</el-button
+      ></template
+    ></el-dialog
+  >
+  <el-dialog
+    v-model="transferOpen"
+    title="调整老人社区与负责人"
+    width="640px"
+    destroy-on-close
+    ><p class="hint">
+      同社区移交会同步转交未完成通知与跟进。跨社区移交前需先结束未闭环业务，历史记录保留在原社区。
+    </p>
+    <el-form label-position="top"
+      ><el-form-item label="目标社区"
+        ><el-select v-model="transferForm.communityId" @change="targetChanged"
+          ><el-option
+            v-for="c in auth.communities.filter((c) => c.status === 'ACTIVE')"
+            :key="c.id"
+            :value="c.id"
+            :label="c.name" /></el-select></el-form-item
+      ><el-form-item label="目标网格"
+        ><el-select v-model="transferForm.gridId"
+          ><el-option
+            v-for="g in targetGrids"
+            :key="g.id"
+            :value="g.id"
+            :label="g.name" /></el-select></el-form-item
+      ><el-form-item label="负责网格员"
+        ><el-select v-model="transferForm.ownerUserId"
+          ><el-option
+            v-for="w in targetWorkers"
+            :key="w.id"
+            :value="w.id"
+            :label="
+              w.displayName + '（' + w.username + '）'
+            " /></el-select></el-form-item
+      ><el-form-item label="移交原因 *"
+        ><el-input
+          v-model="transferForm.reason"
+          type="textarea"
+          maxlength="300" /></el-form-item></el-form
+    ><template #footer
+      ><el-button @click="transferOpen = false">取消</el-button
+      ><el-button type="primary" :loading="saving" @click="saveTransfer"
+        >确认移交</el-button
       ></template
     ></el-dialog
   >

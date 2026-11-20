@@ -66,7 +66,9 @@ public class FollowupController {
     var p = a.scope();
     String where =
         " FROM followup_task t JOIN notice_recipient r ON r.id=t.recipient_id JOIN elder_profile e"
-            + " ON e.id=r.elder_id WHERE t.community_id=:community AND e.owner_user_id=:actor";
+            + " ON e.id=r.elder_id WHERE t.community_id=:community AND (e.owner_user_id=:actor OR "
+            + a.admin()
+            + ")";
     if (status != null) {
       where += " AND t.status=:status";
       p.put("status", status);
@@ -153,7 +155,7 @@ public class FollowupController {
       notices.checkReplay("FOLLOWUP_RECORDED", recordId, hash);
       return Api.ok(Db.p("id", recordId, "replayed", true));
     }
-    Problem.require(Db.id(t, "assignee_id") == a.id(), "仅当前经办人可执行任务");
+    Problem.require(a.admin() || Db.id(t, "assignee_id") == a.id(), "仅当前经办人可执行任务");
     Problem.require(Set.of("PENDING", "PROCESSING").contains(t.get("status")), "任务已结束");
     Problem.require(Set.of("OPEN", "FOLLOWING").contains(r.get("workflow_status")), "通知对象已终结");
     if (b.outcome().equals("RETRY_REQUIRED"))

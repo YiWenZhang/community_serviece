@@ -126,10 +126,12 @@ public class AuthController {
             a.username(),
             "communityId",
             a.communityId(),
+            "communities",
+            auth.communities(a),
             "roles",
             a.roles(),
             "permissions",
-            a.permissions()));
+            a.permissions().stream().filter(a::has).toList()));
   }
 
   @PostMapping("/logout")

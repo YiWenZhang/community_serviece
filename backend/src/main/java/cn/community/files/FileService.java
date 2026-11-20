@@ -126,7 +126,9 @@ public class FileService {
     var p = Db.p("id", id, "community", a.communityId(), "actor", a.id());
     var file =
         db.one(
-            "SELECT * FROM file_object WHERE id=:id AND community_id=:community AND status='ACTIVE'"
+            "SELECT * FROM file_object WHERE id=:id AND (community_id=:community OR ("
+                + a.globalReports()
+                + " AND purpose='REPORT')) AND status='ACTIVE'"
                 + " AND (expires_at IS NULL OR expires_at>UTC_TIMESTAMP(3))",
             p);
     boolean allowed = false;
@@ -139,7 +141,9 @@ public class FileService {
                       "SELECT COUNT(*) FROM delivery_attachment x JOIN delivery_attempt d ON"
                           + " d.id=x.delivery_attempt_id JOIN notice_recipient r ON"
                           + " r.id=d.recipient_id JOIN elder_profile e ON e.id=r.elder_id WHERE"
-                          + " x.file_id=:id AND e.owner_user_id=:actor AND"
+                          + " x.file_id=:id AND (e.owner_user_id=:actor OR "
+                          + a.admin()
+                          + ") AND"
                           + " e.community_id=:community",
                       p)
                   > 0
@@ -149,11 +153,13 @@ public class FileService {
       var report =
           db.optional(
               "SELECT scope_owner_id FROM report_job WHERE output_file_id=:id AND"
-                  + " requested_by=:actor AND community_id=:community",
+                  + " (requested_by=:actor OR "
+                  + a.globalReports()
+                  + ")",
               p);
       if (report.isPresent())
         allowed =
-            a.has("report:export:community")
+            a.has("report:read:community")
                 || (a.has("report:export:own")
                     && report.get().get("scope_owner_id") != null
                     && Db.id(report.get(), "scope_owner_id") == a.id());

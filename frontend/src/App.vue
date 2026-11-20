@@ -12,6 +12,8 @@ import {
   SwitchButton,
   ChatDotRound,
   Document,
+  OfficeBuilding,
+  List,
 } from "@element-plus/icons-vue";
 import zhCn from "element-plus/es/locale/lang/zh-cn";
 import { useAuth } from "./stores";
@@ -22,6 +24,18 @@ const auth = useAuth(),
 const menus = computed(() =>
   [
     { to: "/", name: "服务工作台", icon: House, show: true },
+    {
+      to: "/communities",
+      name: "社区管理",
+      icon: OfficeBuilding,
+      show: auth.can("system:community:manage"),
+    },
+    {
+      to: "/audit-logs",
+      name: "操作日志",
+      icon: List,
+      show: auth.can("audit:read"),
+    },
     {
       to: "/policy-chat",
       name: "政策问答助手",
@@ -94,6 +108,13 @@ async function logout() {
     fail(e);
   }
 }
+async function switchCommunity(id: string) {
+  try {
+    await auth.switchCommunity(id);
+  } catch (e) {
+    fail(e);
+  }
+}
 function expired() {
   if (auth.user) {
     auth.user = null;
@@ -135,6 +156,18 @@ onBeforeUnmount(() => window.removeEventListener("session-expired", expired));
             社区工作空间 <span>/</span> <strong>{{ route.meta.title }}</strong>
           </div>
           <div class="topbar-right">
+            <el-select
+              :model-value="auth.communityId"
+              :disabled="auth.switching"
+              style="width: 180px"
+              aria-label="当前社区"
+              @change="switchCommunity"
+              ><el-option
+                v-for="c in auth.communities"
+                :key="c.id"
+                :label="c.name"
+                :value="c.id"
+            /></el-select>
             <span class="today">{{ today }}</span><span class="avatar">{{
               auth.user.username.slice(0, 1).toUpperCase()
             }}</span>
@@ -148,7 +181,9 @@ onBeforeUnmount(() => window.removeEventListener("session-expired", expired));
             ></el-button>
           </div>
         </header>
-        <main class="page-content"><router-view /></main>
+        <main class="page-content">
+          <router-view :key="route.fullPath + auth.communityId" />
+        </main>
         <footer class="page-footer">
           邻里社区银龄服务 <span>以关怀连接社区，以记录保障服务</span>
         </footer>

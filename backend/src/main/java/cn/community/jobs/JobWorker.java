@@ -71,7 +71,10 @@ public class JobWorker {
     if (job == null) return false;
     var payload = json.map(job.get("payload_json"));
     try {
-      var actor = auth.worker(Long.parseLong(payload.get("actorId").toString()));
+      var actor =
+          auth.worker(
+              Long.parseLong(payload.get("actorId").toString()),
+              Long.parseLong(payload.get("communityId").toString()));
       switch (job.get("job_type").toString()) {
         case "NOTICE_GENERATION" ->
             rules.generate(
@@ -138,11 +141,12 @@ public class JobWorker {
       for (var user :
           db.list(
               "SELECT DISTINCT u.id FROM sys_user u JOIN sys_user_role ur ON ur.user_id=u.id JOIN"
-                  + " sys_role r ON r.id=ur.role_id WHERE u.community_id=:community AND"
+                  + " sys_role r ON r.id=ur.role_id WHERE EXISTS(SELECT 1 FROM user_community m"
+                  + " WHERE m.user_id=u.id AND m.community_id=:community AND m.status='ACTIVE') AND"
                   + " u.status='ACTIVE' AND r.code='GRID_WORKER' AND r.status='ACTIVE'",
               Db.p("community", rule.get("community_id")))) {
         try {
-          var actor = auth.worker(Db.id(user, "id"));
+          var actor = auth.worker(Db.id(user, "id"), Db.id(rule, "community_id"));
           actor.require("notice:create");
           jobs.enqueue(
               actor,

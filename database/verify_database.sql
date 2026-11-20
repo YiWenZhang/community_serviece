@@ -3,7 +3,7 @@ SET NAMES utf8mb4;
 SET SESSION time_zone = '+00:00';
 USE community_elder_service;
 
--- 应为31，不含policy和qa表。
+-- 1.2.0执行V002后为35张；AI模块首次启动后为41张。
 SELECT COUNT(*) AS table_count
 FROM information_schema.tables
 WHERE table_schema = DATABASE() AND table_type = 'BASE TABLE';
@@ -47,10 +47,13 @@ SELECT campaign_id,
          / NULLIF(SUM(eligibility = 'ELIGIBLE'),0),2) AS vaccination_percent
 FROM elder_vaccine_status GROUP BY campaign_id;
 
--- 应为0行；AI的6张表本次全部排除。
+-- AI模块首次启动后应为6行；旧policy/qa设计表名已改为以下实际表名。
 SELECT table_name FROM information_schema.tables
 WHERE table_schema=DATABASE()
-  AND table_name IN ('policy_document','policy_version','policy_chunk','qa_session','qa_message','qa_citation');
+  AND table_name IN ('ai_schema_version','ai_provider','ai_document','ai_chunk','ai_conversation','ai_message');
+
+SELECT version,applied_at FROM app_schema_version WHERE version=2;
+SELECT u.username,c.name AS community_name,m.status FROM user_community m JOIN sys_user u ON u.id=m.user_id JOIN community c ON c.id=m.community_id ORDER BY u.id,c.id;
 
 -- 应为0。校验上门已确认记录是否缺少签字凭证。
 SELECT COUNT(*) AS invalid_confirmed_home_visits

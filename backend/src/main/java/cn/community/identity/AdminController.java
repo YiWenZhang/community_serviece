@@ -32,13 +32,23 @@ public class AdminController {
       @NotBlank @Pattern(regexp = "[a-zA-Z0-9_]{3,64}") String username,
       @NotBlank @Size(min = 12, max = 72) String password,
       @NotBlank @Size(max = 64) String displayName,
-      @NotEmpty Set<Long> roleIds) {}
+      @NotEmpty Set<Long> roleIds,
+      Set<Long> communityIds) {
+    public UserCreate(String username, String password, String displayName, Set<Long> roleIds) {
+      this(username, password, displayName, roleIds, null);
+    }
+  }
 
   public record UserChange(
       @Min(0) int version,
       @NotBlank @Size(max = 64) String displayName,
       @NotNull @Pattern(regexp = "ACTIVE|DISABLED") String status,
-      @NotEmpty Set<Long> roleIds) {}
+      @NotEmpty Set<Long> roleIds,
+      Set<Long> communityIds) {
+    public UserChange(int version, String displayName, String status, Set<Long> roleIds) {
+      this(version, displayName, status, roleIds, null);
+    }
+  }
 
   public record Password(
       @Min(0) int version, @NotBlank @Size(min = 12, max = 72) String password) {}
@@ -52,15 +62,23 @@ public class AdminController {
     var a = auth.require("system:user:manage");
     var result =
         db.page(
-            "SELECT id,username,display_name,status,version,created_at FROM sys_user WHERE"
-                + " community_id=:community ORDER BY id",
-            "SELECT COUNT(*) FROM sys_user WHERE community_id=:community",
+            "SELECT id,username,display_name,status,version,created_at FROM sys_user ORDER BY id",
+            "SELECT COUNT(*) FROM sys_user",
             a.scope(),
             page,
             pageSize);
     @SuppressWarnings("unchecked")
     var items = (List<Map<String, Object>>) result.get("items");
     for (var user : items) {
+      user.put(
+          "communityIds",
+          db
+              .list(
+                  "SELECT community_id FROM user_community WHERE user_id=:id AND status='ACTIVE'",
+                  Db.p("id", user.get("id")))
+              .stream()
+              .map(r -> r.get("community_id"))
+              .toList());
       user.put(
           "roleIds",
           db
@@ -98,6 +116,8 @@ public class AdminController {
                 "created_by",
                 a.id()));
     roles(id, b.roleIds());
+    assign(
+        a, id, b.communityIds() == null ? Set.of(a.communityId()) : b.communityIds(), b.roleIds());
     audit.log(a, "USER_CREATED", "USER", id, Map.of("roles", b.roleIds()));
     return Api.ok(Map.of("id", id));
   }
@@ -110,7 +130,7 @@ public class AdminController {
     privacy.check(b.displayName());
     validateRoles(b.roleIds());
     db.one(
-        "SELECT id FROM sys_user WHERE id=:id AND community_id=:community FOR UPDATE",
+        "SELECT id FROM sys_user WHERE id=:id FOR UPDATE",
         Db.p("id", id, "community", a.communityId()));
     boolean staysAdmin =
         "ACTIVE".equals(b.status())
@@ -123,7 +143,7 @@ public class AdminController {
           db.count(
                   "SELECT COUNT(DISTINCT u.id) FROM sys_user u JOIN sys_user_role ur ON"
                       + " ur.user_id=u.id JOIN sys_role r ON r.id=ur.role_id WHERE"
-                      + " u.community_id=:community AND u.status='ACTIVE' AND r.code='ADMIN' AND"
+                      + " u.status='ACTIVE' AND r.code='ADMIN' AND"
                       + " u.id<>:id",
                   Db.p("community", a.communityId(), "id", id))
               > 0,
@@ -132,7 +152,7 @@ public class AdminController {
         db.update(
             "UPDATE sys_user SET"
                 + " display_name=:name,status=:status,version=version+1,updated_by=:actor WHERE"
-                + " id=:id AND community_id=:community AND version=:v",
+                + " id=:id AND version=:v",
             Db.p(
                 "name",
                 b.displayName(),
@@ -147,6 +167,7 @@ public class AdminController {
                 "v",
                 b.version())));
     roles(id, b.roleIds());
+    if (b.communityIds() != null) assign(a, id, b.communityIds(), b.roleIds());
     audit.log(a, "USER_CHANGED", "USER", id, Map.of("status", b.status(), "roles", b.roleIds()));
     return Api.ok(Map.of("id", id, "version", b.version() + 1));
   }
@@ -160,7 +181,7 @@ public class AdminController {
         db.update(
             "UPDATE sys_user SET"
                 + " password_hash=:hash,failed_login_count=0,locked_until=NULL,version=version+1,updated_by=:actor"
-                + " WHERE id=:id AND community_id=:community AND version=:v",
+                + " WHERE id=:id AND version=:v",
             Db.p(
                 "hash",
                 encoder.encode(b.password()),
@@ -207,9 +228,6 @@ public class AdminController {
   @Operation(summary = "替换角色权限，使该角色所有旧会话失效")
   public Object permissions(@PathVariable long id, @Valid @RequestBody RoleChange b) {
     var a = auth.require("system:role:manage");
-    Problem.require(
-        db.count("SELECT COUNT(*) FROM community WHERE status='ACTIVE'", Map.of()) == 1,
-        "全局角色权限配置当前仅支持单社区部署");
     db.one("SELECT id FROM sys_role WHERE id=:id FOR UPDATE", Db.p("id", id));
     Problem.require(
         db.count(
@@ -251,6 +269,14 @@ public class AdminController {
                 a.scope()),
             "serviceNeeds",
             db.list("SELECT id,code,name FROM service_need WHERE status='ACTIVE'", Map.of()),
+            "workers",
+            db.list(
+                "SELECT DISTINCT u.id,u.username,u.display_name FROM sys_user u JOIN sys_user_role"
+                    + " ur ON ur.user_id=u.id JOIN sys_role r ON r.id=ur.role_id JOIN"
+                    + " user_community m ON m.user_id=u.id WHERE m.community_id=:community AND"
+                    + " m.status='ACTIVE' AND u.status='ACTIVE' AND r.code='GRID_WORKER' AND"
+                    + " r.status='ACTIVE'",
+                a.scope()),
             "vaccineProducts",
             db.list("SELECT id,code,name FROM vaccine_product WHERE status='ACTIVE'", Map.of()),
             "vaccineCampaigns",
@@ -258,22 +284,74 @@ public class AdminController {
   }
 
   @GetMapping("/audit-logs")
-  @Operation(summary = "授权查看本社区脱敏审计")
   public Object logs(
-      @RequestParam(defaultValue = "1") int page, @RequestParam(defaultValue = "20") int pageSize) {
-    var a = auth.require("audit:read");
+      @RequestParam(defaultValue = "1") int page,
+      @RequestParam(defaultValue = "20") int pageSize,
+      @RequestParam(required = false) Long communityId,
+      @RequestParam(defaultValue = "") String action,
+      @RequestParam(defaultValue = "") String actor,
+      @RequestParam(defaultValue = "") String result) {
+    auth.require("audit:read");
+    Problem.require(
+        action.length() <= 80 && actor.length() <= 64 && result.length() <= 16, "筛选条件过长");
+    String where =
+        " FROM audit_log l LEFT JOIN sys_user u ON u.id=l.actor_user_id LEFT JOIN community c ON"
+            + " c.id=l.community_id WHERE (:community IS NULL OR l.community_id=:community) AND"
+            + " (:action='' OR l.action=:action) AND (:actor='' OR u.username LIKE :search) AND"
+            + " (:result='' OR l.result=:result)";
     return Api.ok(
         db.page(
-            "SELECT"
-                + " id,actor_user_id,system_actor,action,target_type,target_id,trace_id,result,change_summary_json,occurred_at"
-                + " FROM audit_log WHERE community_id=:community ORDER BY occurred_at DESC,id DESC",
-            "SELECT COUNT(*) FROM audit_log WHERE community_id=:community",
-            a.scope(),
+            "SELECT l.id,l.actor_user_id,u.username,u.display_name,l.community_id,c.name AS"
+                + " community_name,l.system_actor,l.action,l.target_type,l.target_id,l.trace_id,l.result,l.change_summary_json,l.occurred_at"
+                + where
+                + " ORDER BY l.id DESC",
+            "SELECT COUNT(*)" + where,
+            Db.p(
+                "community",
+                communityId,
+                "action",
+                action,
+                "actor",
+                actor,
+                "search",
+                "%" + actor + "%",
+                "result",
+                result),
             page,
             pageSize));
   }
 
+  private void assign(Actor a, long id, Set<Long> communities, Set<Long> roles) {
+    boolean worker =
+        db.count(
+                "SELECT COUNT(*) FROM sys_role WHERE id IN (:roles) AND code='GRID_WORKER'",
+                Db.p("roles", roles))
+            > 0;
+    Problem.require(!worker || !communities.isEmpty(), "网格员至少分配一个社区");
+    if (!communities.isEmpty())
+      Problem.require(
+          db.count(
+                  "SELECT COUNT(*) FROM community WHERE id IN (:ids) AND status='ACTIVE'",
+                  Db.p("ids", communities))
+              == communities.size(),
+          "分配的社区不存在或已停用");
+    db.update("UPDATE user_community SET status='INACTIVE' WHERE user_id=:id", Db.p("id", id));
+    for (long c : communities)
+      db.update(
+          "INSERT INTO user_community(user_id,community_id,created_by) VALUES(:id,:c,:actor) ON"
+              + " DUPLICATE KEY UPDATE status='ACTIVE'",
+          Db.p("id", id, "c", c, "actor", a.id()));
+    audit.log(a, "USER_COMMUNITIES_CHANGED", "USER", id, Map.of("communityIds", communities));
+  }
+
   private void validateRoles(Set<Long> ids) {
+    Problem.require(
+        ids.size() == 1
+            || db.count(
+                    "SELECT COUNT(*) FROM sys_role WHERE id IN (:ids) AND code='STATISTICIAN'",
+                    Db.p("ids", ids))
+                == 0,
+        "统计员不能同时拥有其他岗位角色");
     Problem.require(
         db.count(
                 "SELECT COUNT(*) FROM sys_role WHERE id IN (:ids) AND status='ACTIVE'",

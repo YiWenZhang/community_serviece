@@ -62,7 +62,9 @@ public class NoticeController {
     var p = a.scope();
     String where =
         " FROM notice_recipient r JOIN elder_profile e ON e.id=r.elder_id WHERE"
-            + " r.community_id=:community AND e.owner_user_id=:actor";
+            + " r.community_id=:community AND (e.owner_user_id=:actor OR "
+            + a.admin()
+            + ")";
     if (receiptStatus != null) {
       where += " AND r.receipt_status=:status";
       p.put("status", receiptStatus);

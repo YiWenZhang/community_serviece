@@ -14,6 +14,28 @@
   --el-border-color: #dfe6e2;
   --el-font-family: inherit;
 }
+.community-overview {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+.community-overview img {
+  width: 60px;
+  height: 60px;
+  object-fit: contain;
+  border-radius: 12px;
+}
+.community-overview h2 {
+  margin-bottom: 8px;
+}
+.community-overview p {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  line-height: 1.7;
+  color: #728478;
+  font-size: 14px;
+}
 * {
   box-sizing: border-box;
 }
@@ -106,6 +128,8 @@ h3 {
   margin: 48px 15px 16px;
 }
 nav {
+  overflow-y: auto;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -758,6 +782,17 @@ nav a.active:after {
   }
 }
 @media (max-width: 760px) {
+  .topbar .breadcrumb {
+    display: none;
+  }
+  .topbar-right {
+    width: 100%;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  .topbar-right .el-select {
+    max-width: calc(100% - 85px);
+  }
   .sidebar {
     width: 74px;
     padding: 25px 8px;
@@ -886,7 +921,8 @@ nav a.active:after {
    高级视觉增强：渐变 / 阴影 / 悬浮动效（不改动任何功能）
    ========================================================= */
 :root {
-  --shadow-xs: 0 1px 2px rgba(34, 60, 54, 0.05), 0 2px 8px rgba(34, 60, 54, 0.06);
+  --shadow-xs:
+    0 1px 2px rgba(34, 60, 54, 0.05), 0 2px 8px rgba(34, 60, 54, 0.06);
   --shadow-sm: 0 4px 14px rgba(28, 58, 52, 0.08);
   --shadow-md: 0 10px 30px rgba(28, 58, 52, 0.12);
   --shadow-lg: 0 20px 50px rgba(20, 46, 40, 0.18);
@@ -902,8 +938,16 @@ body::before {
   z-index: -1;
   pointer-events: none;
   background:
-    radial-gradient(620px 620px at 100% -5%, rgba(95, 199, 176, 0.12), transparent 60%),
-    radial-gradient(560px 560px at -5% 105%, rgba(127, 170, 122, 0.12), transparent 60%);
+    radial-gradient(
+      620px 620px at 100% -5%,
+      rgba(95, 199, 176, 0.12),
+      transparent 60%
+    ),
+    radial-gradient(
+      560px 560px at -5% 105%,
+      rgba(127, 170, 122, 0.12),
+      transparent 60%
+    );
 }
 
 /* ---- 侧边栏 ---- */
@@ -918,7 +962,11 @@ body::before {
   width: 300px;
   height: 300px;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(95, 199, 176, 0.22), transparent 70%);
+  background: radial-gradient(
+    circle,
+    rgba(95, 199, 176, 0.22),
+    transparent 70%
+  );
   top: -70px;
   right: -130px;
   filter: blur(6px);
@@ -932,7 +980,10 @@ body::before {
 nav a {
   position: relative;
   overflow: hidden;
-  transition: background 0.25s ease, color 0.25s ease, transform 0.25s ease;
+  transition:
+    background 0.25s ease,
+    color 0.25s ease,
+    transform 0.25s ease;
 }
 nav a::before {
   content: "";
@@ -992,7 +1043,9 @@ nav a.active::before {
 .panel {
   border-color: transparent;
   box-shadow: var(--shadow-sm);
-  transition: box-shadow 0.3s ease, transform 0.3s ease;
+  transition:
+    box-shadow 0.3s ease,
+    transform 0.3s ease;
 }
 .panel:hover {
   box-shadow: var(--shadow-md);
@@ -1004,7 +1057,8 @@ nav a.active::before {
   border: 1px solid rgba(227, 233, 228, 0.7);
   box-shadow: var(--shadow-sm);
   overflow: hidden;
-  transition: transform 0.35s cubic-bezier(0.2, 0.7, 0.2, 1),
+  transition:
+    transform 0.35s cubic-bezier(0.2, 0.7, 0.2, 1),
     box-shadow 0.35s ease;
   animation: fadeUp 0.55s ease backwards;
 }
@@ -1068,7 +1122,9 @@ nav a.active::before {
 
 /* 状态标签 */
 .status {
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
 }
 .status:hover {
   transform: translateY(-1px);
@@ -1077,7 +1133,9 @@ nav a.active::before {
 
 /* 按钮悬浮 */
 .el-button {
-  transition: transform 0.15s ease, box-shadow 0.25s ease,
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.25s ease,
     background-color 0.2s ease !important;
 }
 .el-button:not(.is-text):not(.is-link):not(.is-disabled):hover {
@@ -1097,7 +1155,9 @@ nav a.active::before {
 
 /* 指标卡（报表） */
 .metrics-grid .panel {
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  transition:
+    transform 0.3s ease,
+    box-shadow 0.3s ease;
 }
 .metrics-grid .panel:hover {
   transform: translateY(-5px);
@@ -1112,7 +1172,9 @@ nav a.active::before {
 
 /* 关怀提示列表 */
 .care-tips li {
-  transition: background 0.25s ease, padding-left 0.25s ease;
+  transition:
+    background 0.25s ease,
+    padding-left 0.25s ease;
   border-radius: 8px;
 }
 .care-tips li:hover {
@@ -1134,7 +1196,11 @@ nav a.active::before {
   width: 540px;
   height: 540px;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(95, 199, 176, 0.28), transparent 70%);
+  background: radial-gradient(
+    circle,
+    rgba(95, 199, 176, 0.28),
+    transparent 70%
+  );
   top: -170px;
   left: -130px;
   filter: blur(12px);
@@ -1168,7 +1234,10 @@ nav a.active::before {
   background: var(--grad-brand) !important;
   border: none !important;
   box-shadow: 0 10px 28px rgba(34, 117, 106, 0.34) !important;
-  transition: transform 0.18s ease, box-shadow 0.25s ease, filter 0.25s ease !important;
+  transition:
+    transform 0.18s ease,
+    box-shadow 0.25s ease,
+    filter 0.25s ease !important;
 }
 .login-submit:hover {
   transform: translateY(-2px);
@@ -1240,7 +1309,8 @@ nav a.active::before {
   padding: 20px 22px 20px 26px;
   box-shadow: var(--shadow-sm);
   overflow: hidden;
-  transition: transform 0.35s cubic-bezier(0.2, 0.7, 0.2, 1),
+  transition:
+    transform 0.35s cubic-bezier(0.2, 0.7, 0.2, 1),
     box-shadow 0.35s ease;
   animation: fadeUp 0.5s ease backwards;
 }
@@ -1396,7 +1466,8 @@ nav a.active::before {
   min-height: 4px;
   border-radius: 9px 9px 5px 5px;
   box-shadow: 0 10px 22px rgba(47, 125, 110, 0.22);
-  transition: height 0.85s cubic-bezier(0.2, 0.7, 0.2, 1),
+  transition:
+    height 0.85s cubic-bezier(0.2, 0.7, 0.2, 1),
     filter 0.25s ease;
 }
 .bar-fill:hover {

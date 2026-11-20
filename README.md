@@ -4,13 +4,15 @@
 
 当前架构：**Vue 前端 → Spring Boot 服务 → MySQL + 本地Lucene向量索引 → 配置的模型API**。后端按领域分包，统一打包；启动不需要 Nacos、Redis 或独立向量数据库进程。
 
+**1.2.0已支持多社区授权和全社区统计。已有数据库必须先执行增量升级，见[多社区权限升级说明](多社区权限升级说明.md)，不要重新导入初始化数据库。**
+
 ## 技术栈
 
 | 部分 | 技术 |
 | --- | --- |
 | 后端 | Java 21、Spring Boot 4.1.1、Spring Security、Spring JDBC、Maven |
 | 前端 | Vue 3、TypeScript、Vite、Pinia、Vue Router、Element Plus、Axios |
-| 数据库 | MySQL 8.0.16 及以上，31 张业务表与6张AI表；Lucene 9.12.2 |
+| 数据库 | MySQL 8.0.16 及以上，31 张业务表、6张AI表、4张多社区相关表；Lucene 9.12.2 |
 | 接口与导出 | OpenAPI / Swagger UI、Apache POI（Excel、Word） |
 
 ## 队友首次运行（Windows / PowerShell）
@@ -79,7 +81,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\启动网站.ps1
 | 后端健康检查 | http://127.0.0.1:8080/actuator/health |
 | Swagger UI | http://127.0.0.1:8080/swagger-ui.html |
 
-管理员账号为 `admin_demo`，密码为刚才自己设置的应用密码。进入“用户管理”，启用 `grid_demo`、`stats_demo` 并设置各自的密码，保留原角色。使用 `grid_demo` 体验示例老人档案、通知及跟进；`stats_demo` 查看统计和导出报表。管理员默认没有老人档案读取权限。
+管理员账号为 `admin_demo`，密码为刚才自己设置的应用密码。进入“用户管理”，启用 `grid_demo`、`stats_demo` 并设置各自的密码，保留原角色。使用 `grid_demo` 体验示例老人档案、通知及跟进；`stats_demo` 查看统计和导出报表。管理员可管理全部社区的老人和业务，网格员仅操作已分配社区内本人负责的记录。
 
 MySQL 账号与应用账号相互独立；DBeaver 连接 `127.0.0.1:3306`、库名 `community_elder_service`，使用 MySQL 账号和密码。开发时前端通过 Vite 代理访问后端，接口前缀为 `/api/v1`。
 

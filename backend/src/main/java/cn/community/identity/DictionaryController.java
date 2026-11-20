@@ -77,9 +77,6 @@ public class DictionaryController {
 
   private Object dictionary(String table, Name b) {
     var a = auth.require("system:config:manage");
-    Problem.require(
-        db.count("SELECT COUNT(*) FROM community WHERE status='ACTIVE'", Map.of()) == 1,
-        "全局字典维护当前仅支持单社区部署");
     privacy.check(b.name());
     long id = db.insert(table, Db.p("code", b.code(), "name", b.name(), "created_by", a.id()));
     audit.log(a, "DICTIONARY_CREATED", table, id, Map.of());

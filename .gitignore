@@ -12,6 +12,7 @@
 /backend/storage/
 /backend/logs/
 /database/local-import-status.json
+/database/backups/
 *.log
 *.pid
 *.hprof

@@ -36,9 +36,10 @@ try {
     # 用标准输入传递整个UTF-8批处理，不使用source，确保任何SQL错误均停止并返回非零退出码。
     # mysql批处理默认不继续执行错误后的语句，禁止添加--force。
     $taskSqlText = Get-Content -LiteralPath $taskSqlPath -Raw -Encoding UTF8
+    $taskSqlText += "`n" + (Get-Content -LiteralPath (Join-Path $PSScriptRoot 'migrations/V002__multi_community.sql') -Raw -Encoding UTF8)
     $taskSqlText | & $MySqlExe --no-defaults --protocol=TCP "--host=$MySqlHost" "--port=$MySqlPort" "--user=$MySqlUser" --password --default-character-set=utf8mb4 --connect-timeout=10
     if ($LASTEXITCODE -ne 0) { throw "MySQL导入失败，退出码$LASTEXITCODE；请保留窗口错误信息，不要反复重导。" }
-    Save-ImportStatus 'SUCCESS' '数据库及31张表和示例数据已导入；mysql自检通过'
+    Save-ImportStatus 'SUCCESS' '数据库、31张业务表、4张多社区相关表与示例数据已导入；AI表在后端首次启动时增量建立'
     Write-Host ''
     Write-Host '导入成功：community_elder_service' -ForegroundColor Green
     Write-Host 'DBeaver：MySQL / 127.0.0.1 / 3306 / 数据库community_elder_service / 当前数据库账号及密码。'

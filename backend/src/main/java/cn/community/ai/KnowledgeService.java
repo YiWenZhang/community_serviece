@@ -258,7 +258,7 @@ public class KnowledgeService {
     if (row == null) return false;
     long id = Db.id(row, "id");
     try {
-      var actor = auth.worker(Db.id(row, "created_by"));
+      var actor = auth.worker(Db.id(row, "created_by"),Db.id(row,"community_id"));
       actor.require("ai:knowledge:manage");
       var chat = models.chat(actor.communityId());
       var embed = models.active(actor.communityId(), "EMBEDDING");
@@ -333,7 +333,7 @@ public class KnowledgeService {
                     + " status='PROCESSING' FOR UPDATE",
                 Db.p("id", id, "token", token));
             // 长任务完成前再次检查权限；撤权后不能发布入库。
-            auth.worker(actor.id()).require("ai:knowledge:manage");
+            auth.worker(actor.id(),actor.communityId()).require("ai:knowledge:manage");
             db.update("DELETE FROM ai_chunk WHERE document_id=:id", Db.p("id", id));
             for (var f : enriched) {
               long chunkId = db.insert("ai_chunk", f);

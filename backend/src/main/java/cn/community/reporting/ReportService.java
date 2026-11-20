@@ -21,7 +21,12 @@ public class ReportService {
       @Pattern(regexp = "\\d{4}-(0[1-9]|1[0-2])") @NotNull String month,
       Long ownerId,
       @Pattern(regexp = "VACCINE|BIRTHDAY|LECTURE|OTHER") String noticeType,
-      Long campaignId) {}
+      Long campaignId,
+      Long communityId) {
+    public Query(String month, Long ownerId, String noticeType, Long campaignId) {
+      this(month, ownerId, noticeType, campaignId, null);
+    }
+  }
 
   public record Export(
       @jakarta.validation.Valid @NotNull Query query,
@@ -79,6 +84,10 @@ public class ReportService {
   }
 
   public Map<String, Object> calculate(Actor a, Query q, Long owner, LocalDateTime snapshot) {
+    Long scopeCommunity = a.globalReports() ? q.communityId() : Long.valueOf(a.communityId());
+    Problem.require(
+        a.globalReports() || q.communityId() == null || q.communityId() == a.communityId(),
+        "只能统计当前授权社区内本人负责的数据");
     YearMonth month = YearMonth.parse(q.month());
     LocalDateTime start =
         month
@@ -97,7 +106,7 @@ public class ReportService {
     var p =
         Db.p(
             "community",
-            a.communityId(),
+            scopeCommunity,
             "start",
             start,
             "end",
@@ -113,10 +122,10 @@ public class ReportService {
             "campaign",
             q.campaignId());
     String where =
-        "r.community_id=:community AND r.issued_at>=:start AND r.issued_at<:end AND"
-            + " r.issued_at<:cutoff AND r.created_at<=:snapshot AND (:owner IS NULL OR"
-            + " r.owner_at_issue=:owner) AND (:type IS NULL OR n.type=:type) AND (:campaign IS NULL"
-            + " OR n.campaign_id=:campaign)";
+        "(:community IS NULL OR r.community_id=:community) AND r.issued_at>=:start AND"
+            + " r.issued_at<:end AND r.issued_at<:cutoff AND r.created_at<=:snapshot AND (:owner IS"
+            + " NULL OR r.owner_at_issue=:owner) AND (:type IS NULL OR n.type=:type) AND (:campaign"
+            + " IS NULL OR n.campaign_id=:campaign)";
     String facts =
         "SELECT r.id,COALESCE(ev.to_receipt_status,'PENDING') AS"
             + " receipt,COALESCE(ev.to_workflow_status,'OPEN') AS workflow FROM notice_recipient r"
@@ -173,10 +182,14 @@ public class ReportService {
               + " h.id=(SELECT h2.id FROM vaccination_record h2 WHERE"
               + " h2.elder_vaccine_status_id=s.id AND h2.effective_at<:cutoff AND"
               + " h2.created_at<=:snapshot ORDER BY h2.effective_at DESC,h2.id DESC LIMIT 1) WHERE"
-              + " e.community_id=:community AND (:campaign IS NULL OR s.campaign_id=:campaign) AND"
-              + " (:owner IS NULL OR :owner=(SELECT a.new_owner_id FROM elder_assignment_history a"
-              + " WHERE a.elder_id=e.id AND a.effective_at<:cutoff AND a.created_at<=:snapshot"
-              + " ORDER BY a.effective_at DESC,a.id DESC LIMIT 1))";
+              + " (:community IS NULL OR COALESCE((SELECT g.community_id FROM"
+              + " elder_assignment_history ah JOIN grid g ON g.id=ah.new_grid_id WHERE"
+              + " ah.elder_id=e.id AND ah.effective_at<:cutoff AND ah.created_at<=:snapshot ORDER"
+              + " BY ah.effective_at DESC,ah.id DESC LIMIT 1),e.community_id)=:community) AND"
+              + " (:campaign IS NULL OR s.campaign_id=:campaign) AND (:owner IS NULL OR"
+              + " :owner=(SELECT a.new_owner_id FROM elder_assignment_history a WHERE"
+              + " a.elder_id=e.id AND a.effective_at<:cutoff AND a.created_at<=:snapshot ORDER BY"
+              + " a.effective_at DESC,a.id DESC LIMIT 1))";
       if ("VACCINE".equals(q.noticeType()))
         vaccinated +=
             " AND EXISTS(SELECT 1 FROM notice_recipient r JOIN notice n ON n.id=r.notice_id WHERE"
@@ -204,14 +217,18 @@ public class ReportService {
             "SELECT COUNT(*) AS total,COALESCE(SUM(t.completed_at IS NOT NULL AND"
                 + " t.completed_at<=t.due_at AND t.completed_at<:cutoff),0) AS on_time FROM"
                 + " followup_task t JOIN notice_recipient r ON r.id=t.recipient_id JOIN notice n ON"
-                + " n.id=r.notice_id WHERE t.community_id=:community AND t.due_at>=:start AND"
-                + " t.due_at<:end AND t.created_at<=:snapshot AND (:owner IS NULL OR"
-                + " t.assignee_id=:owner) AND (:type IS NULL OR n.type=:type) AND (:campaign IS"
-                + " NULL OR n.campaign_id=:campaign) AND NOT(t.status='CANCELLED' AND"
+                + " n.id=r.notice_id WHERE (:community IS NULL OR t.community_id=:community) AND"
+                + " t.due_at>=:start AND t.due_at<:end AND t.created_at<=:snapshot AND (:owner IS"
+                + " NULL OR t.assignee_id=:owner) AND (:type IS NULL OR n.type=:type) AND"
+                + " (:campaign IS NULL OR n.campaign_id=:campaign) AND NOT(t.status='CANCELLED' AND"
                 + " t.updated_at<:cutoff)",
             p);
     metrics.add(metric("FOLLOWUP_ON_TIME", Db.id(task, "on_time"), Db.id(task, "total"), "ALL"));
     return Db.p(
+        "communityId",
+        scopeCommunity,
+        "scopeLabel",
+        scopeCommunity == null ? "全部社区" : "社区 " + scopeCommunity,
         "month",
         q.month(),
         "ownerId",
@@ -241,6 +258,8 @@ public class ReportService {
             Db.p("key", "report:" + a.id() + ":" + key));
     if (existing.isPresent()) {
       var old = json.map(existing.get().get("payload_json"));
+      if (!String.valueOf(a.communityId()).equals(String.valueOf(old.get("communityId"))))
+        throw new Problem(409, "幂等键已用于其他社区的报表");
       if (!json.equal(old.get("query"), b.query()) || !b.format().equals(old.get("format")))
         throw new Problem(409, "幂等键已用于不同报表参数");
       return Db.p(
@@ -301,7 +320,8 @@ public class ReportService {
             filter.get("month").toString(),
             number(filter.get("ownerId")),
             (String) filter.get("noticeType"),
-            number(filter.get("campaignId")));
+            number(filter.get("campaignId")),
+            number(filter.get("communityId")));
     Long scope = owner(a, q, true);
     LocalDateTime snapshot = LocalDateTime.now(ZoneOffset.UTC);
     var data = calculate(a, q, scope, snapshot);
@@ -343,7 +363,14 @@ public class ReportService {
       try (var workbook = new XSSFWorkbook()) {
         var sheet = workbook.createSheet("养老服务月报");
         var title = sheet.createRow(0);
-        title.createCell(0).setCellValue(q.month() + " 养老服务月报 v1 快照 " + data.get("snapshotAt"));
+        title
+            .createCell(0)
+            .setCellValue(
+                q.month()
+                    + " "
+                    + data.get("scopeLabel")
+                    + " 养老服务月报 v1 快照 "
+                    + data.get("snapshotAt"));
         var header = sheet.createRow(1);
         for (int c = 0; c < headers.length; c++) header.createCell(c).setCellValue(headers[c]);
         int i = 2;
@@ -357,7 +384,9 @@ public class ReportService {
       }
     } else {
       try (var doc = new XWPFDocument()) {
-        doc.createParagraph().createRun().setText(q.month() + " 养老服务月报");
+        doc.createParagraph()
+            .createRun()
+            .setText(q.month() + " " + data.get("scopeLabel") + " 养老服务月报");
         doc.createParagraph().createRun().setText("口径 v1 快照 " + data.get("snapshotAt") + " 仅汇总数据");
         var table = doc.createTable(rows.size() + 1, headers.length);
         for (int c = 0; c < headers.length; c++) table.getRow(0).getCell(c).setText(headers[c]);

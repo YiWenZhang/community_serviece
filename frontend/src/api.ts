@@ -9,11 +9,17 @@ export const http = axios.create({
   timeout: 30000,
 });
 let csrfToken = "";
+let selectedCommunity = "";
+export function setCommunity(id: string) {
+  selectedCommunity = id === "0" ? "" : id;
+}
 export async function csrf() {
   const response = await http.get("/auth/csrf");
   csrfToken = response.data.data.token;
 }
 http.interceptors.request.use((config) => {
+  if (selectedCommunity)
+    config.headers.set("X-Community-Id", selectedCommunity);
   if (!["get", "head", "options"].includes(config.method || "get"))
     config.headers.set("X-XSRF-TOKEN", csrfToken);
   return config;

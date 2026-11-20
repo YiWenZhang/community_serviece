@@ -39,9 +39,13 @@ public class SecurityConfig {
       HttpSecurity http,
       HttpSessionSecurityContextRepository repo,
       CsrfTokenRepository csrf,
+      cn.community.common.Audit audit,
       @Value("${app.public-docs}") boolean docs)
       throws Exception {
-    http.csrf(
+    http.addFilterAfter(
+            new OperationAuditFilter(audit),
+            org.springframework.security.web.context.SecurityContextHolderFilter.class)
+        .csrf(
             c ->
                 c.csrfTokenRepository(csrf)
                     .csrfTokenRequestHandler(new CsrfTokenRequestAttributeHandler()))

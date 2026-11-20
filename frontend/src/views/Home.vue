@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref } from "vue";
+import { computed, onMounted, ref } from "vue";
 import { useAuth } from "../stores";
 import { api, fail, date, type Row } from "../api";
 import Status from "../components/Status.vue";
@@ -16,6 +16,9 @@ const auth = useAuth(),
   tasks = ref<Row[]>([]),
   loading = ref(false),
   error = ref("");
+const community = computed(() =>
+  auth.communities.find((c) => c.id === auth.communityId),
+);
 async function load() {
   loading.value = true;
   error.value = "";
@@ -58,6 +61,17 @@ onMounted(load);
       <span>关</span><span>怀</span><i />
     </div>
   </section>
+  <section v-if="community" class="panel mb community-overview">
+    <img
+      v-if="community.hasIcon"
+      :src="`/api/v1/communities/${community.id}/icon?v=${community.version}`"
+      alt="社区图标"
+    />
+    <div>
+      <h2>{{ community.name }}</h2>
+      <p>{{ community.description || "欢迎使用本社区老年服务工作台。" }}</p>
+    </div>
+  </section>
   <el-alert
     v-if="error"
     :title="error"
@@ -69,7 +83,9 @@ onMounted(load);
   <section v-loading="loading" class="stat-tiles">
     <StatCard
       v-if="auth.can('elder:read')"
-      label="本人负责老人"
+      :label="
+        auth.user?.roles?.includes('ADMIN') ? '当前社区老人' : '本人负责老人'
+      "
       :value="stats.elders ?? '—'"
       suffix="人"
       :icon="User"
@@ -78,7 +94,11 @@ onMounted(load);
     />
     <StatCard
       v-if="auth.can('notice:read')"
-      label="本人通知对象"
+      :label="
+        auth.user?.roles?.includes('ADMIN')
+          ? '当前社区通知对象'
+          : '本人通知对象'
+      "
       :value="stats.notices ?? '—'"
       suffix="条"
       :icon="Bell"
@@ -106,7 +126,7 @@ onMounted(load);
     />
     <StatCard
       v-if="auth.can('system:user:manage')"
-      label="本社区工作人员"
+      label="全部工作人员"
       :value="stats.users ?? '—'"
       suffix="位"
       :icon="Avatar"

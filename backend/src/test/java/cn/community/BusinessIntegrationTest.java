@@ -181,6 +181,7 @@ class BusinessIntegrationTest {
                 "status",
                 "ACTIVE"));
     db.insert("sys_user_role", Db.p("user_id", uid, "role_id", 2));
+    db.update("INSERT INTO user_community(user_id,community_id) VALUES(:user,1)", Db.p("user",uid));
     elders.transfer(actor(1), 2, new ElderService.Transfer(0, 1L, uid, "测试移交"));
     assertThat(db.count("SELECT owner_user_id FROM elder_profile WHERE id=2", Map.of()))
         .isEqualTo(uid);

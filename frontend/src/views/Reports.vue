@@ -16,6 +16,7 @@ import Status from "../components/Status.vue";
 import BarChart from "../components/BarChart.vue";
 import DonutChart from "../components/DonutChart.vue";
 const auth = useAuth(),
+  reportCommunity = ref(""),
   month = ref(new Date().toLocaleDateString("sv-SE").slice(0, 7)),
   data = ref<Row | null>(null),
   loading = ref(false),
@@ -81,7 +82,16 @@ async function load() {
   loading.value = true;
   error.value = "";
   try {
-    data.value = await api("/reports/metrics?" + query({ month: month.value }));
+    data.value = await api(
+      "/reports/metrics?" +
+        query({ month: month.value, communityId: reportCommunity.value }),
+    );
+    const list = await api("/report-jobs?pageSize=100");
+    exports.value = list.items.map((r: Row) => ({
+      ...r,
+      fileId: r.outputFileId,
+      month: r.periodStart?.slice(0, 7),
+    }));
   } catch (e) {
     error.value = (e as Error).message;
   } finally {
@@ -109,7 +119,13 @@ async function exportReport(format: string) {
     const r = await api(
       "/report-jobs",
       "POST",
-      { query: { month: month.value }, format },
+      {
+        query: {
+          month: month.value,
+          communityId: reportCommunity.value || null,
+        },
+        format,
+      },
       idempotency(),
     );
     const item = {
@@ -156,7 +172,7 @@ onBeforeUnmount(() => {
       <p>
         {{
           auth.can("report:read:community")
-            ? "查看本社区服务汇总"
+            ? "查看全部社区服务汇总，可按社区筛选"
             : "查看本人负责范围的服务汇总"
         }}，保留每个指标的分子与分母。
       </p>
@@ -164,6 +180,17 @@ onBeforeUnmount(() => {
   </div>
   <section class="panel">
     <div class="toolbar">
+      <el-select
+        v-if="auth.can('report:read:community')"
+        v-model="reportCommunity"
+        placeholder="全部社区"
+        clearable
+        ><el-option label="全部社区" value="" /><el-option
+          v-for="c in auth.communities"
+          :key="c.id"
+          :value="c.id"
+          :label="c.name"
+      /></el-select>
       <el-date-picker
         v-model="month"
         type="month"

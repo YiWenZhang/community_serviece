@@ -72,7 +72,9 @@ public class NoticeService {
   public Map<String, Object> recipient(Actor a, long id, boolean lock) {
     return db.one(
         "SELECT r.* FROM notice_recipient r JOIN elder_profile e ON e.id=r.elder_id WHERE r.id=:id"
-            + " AND r.community_id=:community AND e.owner_user_id=:actor"
+            + " AND r.community_id=:community AND (e.owner_user_id=:actor OR "
+            + a.admin()
+            + ")"
             + (lock ? " FOR UPDATE" : ""),
         Db.p("id", id, "community", a.communityId(), "actor", a.id()));
   }
@@ -80,9 +82,13 @@ public class NoticeService {
   public Object list(Actor a, int page, int size) {
     a.require("notice:read");
     String where =
-        " FROM notice n WHERE n.community_id=:community AND (n.created_by=:actor OR EXISTS (SELECT"
+        " FROM notice n WHERE n.community_id=:community AND ((n.created_by=:actor OR "
+            + a.admin()
+            + ") OR EXISTS (SELECT"
             + " 1 FROM notice_recipient r JOIN elder_profile e ON e.id=r.elder_id WHERE"
-            + " r.notice_id=n.id AND e.owner_user_id=:actor))";
+            + " r.notice_id=n.id AND (e.owner_user_id=:actor OR "
+            + a.admin()
+            + ")))";
     return db.page(
         "SELECT n.id,n.notice_no,n.type,n.title,n.status,n.active_at,n.version"
             + where
@@ -99,15 +105,21 @@ public class NoticeService {
     var n =
         db.one(
             "SELECT n.* FROM notice n WHERE n.id=:id AND n.community_id=:community AND"
-                + " (n.created_by=:actor OR EXISTS (SELECT 1 FROM notice_recipient r JOIN"
+                + " ((n.created_by=:actor OR "
+                + a.admin()
+                + ") OR EXISTS (SELECT 1 FROM notice_recipient r JOIN"
                 + " elder_profile e ON e.id=r.elder_id WHERE r.notice_id=n.id AND"
-                + " e.owner_user_id=:actor))",
+                + " (e.owner_user_id=:actor OR "
+                + a.admin()
+                + ")))",
             p);
     n.put(
         "recipients",
         db.list(
             "SELECT r.* FROM notice_recipient r JOIN elder_profile e ON e.id=r.elder_id WHERE"
-                + " r.notice_id=:id AND e.owner_user_id=:actor",
+                + " r.notice_id=:id AND (e.owner_user_id=:actor OR "
+                + a.admin()
+                + ")",
             p));
     return n;
   }
@@ -161,9 +173,9 @@ public class NoticeService {
               "elder_id",
               elder,
               "owner_user_id",
-              a.id(),
+              Db.id(elders.owned(a, elder, false), "owner_user_id"),
               "owner_at_issue",
-              a.id(),
+              Db.id(elders.owned(a, elder, false), "owner_user_id"),
               "created_by",
               a.id()));
     audit.log(a, "NOTICE_CREATED", "NOTICE", id, Map.of("recipientCount", b.elderIds().size()));
@@ -175,7 +187,10 @@ public class NoticeService {
     a.require("notice:create");
     var n =
         db.one(
-            "SELECT * FROM notice WHERE id=:id AND community_id=:community AND created_by=:actor"
+            "SELECT * FROM notice WHERE id=:id AND community_id=:community AND (created_by=:actor"
+                + " OR "
+                + a.admin()
+                + ")"
                 + " FOR UPDATE",
             Db.p("id", id, "community", a.communityId(), "actor", a.id()));
     Problem.require("DRAFT".equals(n.get("status")), "只有草稿可以激活");
@@ -187,7 +202,8 @@ public class NoticeService {
             Db.p("id", id));
     for (var r : recipients)
       Problem.require(
-          Db.id(r, "current_owner") == a.id() && "ACTIVE".equals(r.get("elder_status")),
+          (a.admin() || Db.id(r, "current_owner") == a.id())
+              && "ACTIVE".equals(r.get("elder_status")),
           "名单含已移交或停用档案，请重新创建通知");
     Problem.changed(
         db.update(
@@ -199,7 +215,8 @@ public class NoticeService {
       long rid = Db.id(r, "id");
       db.update(
           "UPDATE notice_recipient SET"
-              + " issued_at=UTC_TIMESTAMP(3),owner_at_issue=:actor,version=version+1 WHERE id=:id",
+              + " issued_at=UTC_TIMESTAMP(3),owner_at_issue=owner_user_id,version=version+1 WHERE"
+              + " id=:id",
           Db.p("actor", a.id(), "id", rid));
       event(a, r, "ISSUED", "PENDING", "OPEN", null, "通知激活", "activate-" + rid);
       if ("VACCINE".equals(n.get("type"))) vaccineTask(a, r, n);
@@ -244,7 +261,10 @@ public class NoticeService {
     privacy.check(b.reason());
     var n =
         db.one(
-            "SELECT * FROM notice WHERE id=:id AND community_id=:community AND created_by=:actor"
+            "SELECT * FROM notice WHERE id=:id AND community_id=:community AND (created_by=:actor"
+                + " OR "
+                + a.admin()
+                + ")"
                 + " FOR UPDATE",
             Db.p("id", id, "community", a.communityId(), "actor", a.id()));
     Problem.require(!Set.of("CANCELLED", "COMPLETED").contains(n.get("status")), "通知已经终结");
@@ -541,7 +561,7 @@ public class NoticeService {
             "task_type",
             type,
             "assignee_id",
-            a.id(),
+            Db.id(recipient(a, recipient, false), "owner_user_id"),
             "source_attempt_id",
             attempt,
             "due_at",
@@ -593,7 +613,7 @@ public class NoticeService {
             "effective_at",
             ElderService.utc(),
             "owner_snapshot_id",
-            a.id(),
+            before.get("owner_user_id"),
             "reason",
             reason,
             "request_key",

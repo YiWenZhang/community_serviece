@@ -11,12 +11,24 @@ import Rules from "./views/Rules.vue";
 import PolicyChat from "./views/PolicyChat.vue";
 import Knowledge from "./views/Knowledge.vue";
 import AiModels from "./views/AiModels.vue";
+import Communities from "./views/Communities.vue";
+import AuditLogs from "./views/AuditLogs.vue";
 
 export const router = createRouter({
   history: createWebHashHistory(),
   routes: [
     { path: "/login", component: Login, meta: { title: "登录" } },
     { path: "/", component: Home, meta: { title: "服务工作台" } },
+    {
+      path: "/communities",
+      component: Communities,
+      meta: { title: "社区管理", permission: "system:community:manage" },
+    },
+    {
+      path: "/audit-logs",
+      component: AuditLogs,
+      meta: { title: "操作日志", permission: "audit:read" },
+    },
     {
       path: "/policy-chat",
       component: PolicyChat,
