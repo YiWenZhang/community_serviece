@@ -1,6 +1,6 @@
 # 社区老年服务业务微服务
 
-`community-service`是可独立启动和部署的Spring Boot后端，覆盖现有数据库的非AI部分。AI后续作为独立服务开发；当前工程没有政策解析、向量检索、模型调用或AI接口，也不依赖AI服务在线。
+`community-service`是可独立启动和部署的Spring Boot后端。1.1.0已增加政策知识库、AI结构化解析、Lucene持久向量索引、RAG问答与可切换模型配置，沿用现有会话与角色权限。详见[政策问答启动说明](../政策问答启动说明.md)。
 
 ## 技术与目录
 
@@ -30,7 +30,7 @@ backend/
 
 ## 一 本机启动
 
-项目数据库已在前一步创建。本服务**不自动建表、不重导样例、不删除数据库，也不修改MySQL密码**。请先确认`MySQL80`服务运行。
+项目业务数据库已在前一步创建。1.1.0仅增量创建AI表并首次赋予内置角色AI权限；不重建业务表、不重导样例、不删除数据库，也不修改MySQL密码。请先确认`MySQL80`服务运行。
 
 在PowerShell执行：
 
@@ -117,10 +117,10 @@ Vue开发环境建议使用Vite的`/api`代理转发到本服务，保持浏览�
 
 ```powershell
 mvn clean package
-java -jar target/community-service-1.0.0.jar
+java -jar target/community-service-1.1.0.jar
 ```
 
-独立可执行产物为`target/community-service-1.0.0.jar`。直接java启动前必须配置数据库密码及两把密钥；本机优先使用上述交互脚本。Dockerfile提供Java21镜像和非root运行用户：
+独立可执行产物为`target/community-service-1.1.0.jar`。直接java启动前必须配置数据库密码及两把密钥；本机优先使用上述交互脚本。Dockerfile提供Java21镜像和非root运行用户：
 
 ```text
 docker build -t community-service:1.0.0 .
@@ -128,7 +128,7 @@ docker build -t community-service:1.0.0 .
 
 容器的DB_URL应指向可访问的MySQL地址，不能把容器内127.0.0.1误认为电脑上的数据库。以环境或密钥系统注入配置，挂载`/data/community-service`并保证UID10001有写权限；发布服务时通过HTTPS反向代理接入。
 
-未来AI服务拥有自己的政策、片段及问答数据，不直接写本服务的老人和通知表。当前没有开放未经授权的内部AI调用接口。跨服务用户身份建议后续使用统一身份服务或受控令牌交换，不能直接信任请求中的userId，也不能假设两个服务自动共享内存Session。
+AI模块位于`cn.community.ai`，拥有独立的政策、片段、模型配置和问答表，不修改老人、通知表。所有AI接口沿用服务端Session、CSRF和数据库权限，并按当前用户社区隔离；模型配置同时要求ADMIN角色与系统配置权限。
 
 ## 八 测试
 

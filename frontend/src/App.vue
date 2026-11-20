@@ -10,6 +10,8 @@ import {
   Avatar,
   Setting,
   SwitchButton,
+  ChatDotRound,
+  Document,
 } from "@element-plus/icons-vue";
 import zhCn from "element-plus/es/locale/lang/zh-cn";
 import { useAuth } from "./stores";
@@ -20,6 +22,27 @@ const auth = useAuth(),
 const menus = computed(() =>
   [
     { to: "/", name: "服务工作台", icon: House, show: true },
+    {
+      to: "/policy-chat",
+      name: "政策问答助手",
+      icon: ChatDotRound,
+      show: auth.can("ai:chat"),
+    },
+    {
+      to: "/knowledge",
+      name: "政策知识库",
+      icon: Document,
+      show: auth.can("ai:knowledge:manage"),
+    },
+    {
+      to: "/ai-models",
+      name: "AI 模型配置",
+      icon: Setting,
+      show:
+        auth.can("ai:model:manage") &&
+        auth.can("system:config:manage") &&
+        auth.user?.roles?.includes("ADMIN"),
+    },
     {
       to: "/elders",
       name: "老人档案",
@@ -112,13 +135,13 @@ onBeforeUnmount(() => window.removeEventListener("session-expired", expired));
             社区工作空间 <span>/</span> <strong>{{ route.meta.title }}</strong>
           </div>
           <div class="topbar-right">
-            <span class="today">{{ today }}</span
-            ><span class="avatar">{{
+            <span class="today">{{ today }}</span><span class="avatar">{{
               auth.user.username.slice(0, 1).toUpperCase()
             }}</span>
             <div class="identity">
-              <strong>{{ auth.user.username }}</strong
-              ><small>{{ auth.user.roles.map(label).join(" / ") }}</small>
+              <strong>{{ auth.user.username }}</strong><small>{{
+                auth.user.roles.map(label).join(" / ")
+              }}</small>
             </div>
             <el-button text aria-label="退出登录" @click="logout"
               ><el-icon><SwitchButton /></el-icon

@@ -18,6 +18,10 @@ spring:
     multipart:
       max-file-size: 20MB
       max-request-size: 21MB
+  task:
+    scheduling:
+      pool:
+        size: 4
 server:
   port: ${SERVER_PORT:8080}
   address: ${SERVER_ADDRESS:127.0.0.1}
@@ -44,6 +48,9 @@ springdoc:
     csrf:
       enabled: true
 app:
+  ai:
+    migrate: ${APP_AI_MIGRATE:true}
+    initial-key: ${DEEPSEEK_API_KEY:}
   aes-key: ${APP_AES_KEY:}
   hmac-key: ${APP_HMAC_KEY:}
   key-version: 1

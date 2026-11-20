@@ -14,9 +14,9 @@ public class OpenApiConfig {
         .info(
             new Info()
                 .title("社区老年服务业务微服务接口")
-                .version("1.0.0")
+                .version("1.1.0")
                 .description(
-                    "不含AI。先GET"
+                    "含政策知识库、模型配置及RAG问答。先GET"
                         + " /api/v1/auth/csrf，再使用X-XSRF-TOKEN及Cookie登录。所有写请求要求CSRF，触达、跟进及异步作业要求Idempotency-Key。BIGINT及统计数量响应为字符串。"))
         .components(
             new Components()

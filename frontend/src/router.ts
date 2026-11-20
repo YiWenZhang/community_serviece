@@ -8,12 +8,34 @@ import Followups from "./views/Followups.vue";
 import Reports from "./views/Reports.vue";
 import Users from "./views/Users.vue";
 import Rules from "./views/Rules.vue";
+import PolicyChat from "./views/PolicyChat.vue";
+import Knowledge from "./views/Knowledge.vue";
+import AiModels from "./views/AiModels.vue";
 
 export const router = createRouter({
   history: createWebHashHistory(),
   routes: [
     { path: "/login", component: Login, meta: { title: "登录" } },
     { path: "/", component: Home, meta: { title: "服务工作台" } },
+    {
+      path: "/policy-chat",
+      component: PolicyChat,
+      meta: { title: "政策问答助手", permission: "ai:chat" },
+    },
+    {
+      path: "/knowledge",
+      component: Knowledge,
+      meta: { title: "政策知识库", permission: "ai:knowledge:manage" },
+    },
+    {
+      path: "/ai-models",
+      component: AiModels,
+      meta: {
+        title: "AI 模型配置",
+        permission: "ai:model:manage",
+        adminOnly: true,
+      },
+    },
     {
       path: "/elders",
       component: Elders,
@@ -60,6 +82,11 @@ router.beforeEach(async (to) => {
   if (!auth.user && to.path !== "/login") return "/login";
   if (auth.user && to.path === "/login") return "/";
   if (to.meta.permission && !auth.can(to.meta.permission as string)) return "/";
+  if (
+    to.meta.adminOnly &&
+    (!auth.user?.roles?.includes("ADMIN") || !auth.can("system:config:manage"))
+  )
+    return "/";
   if (to.meta.permissions && !(to.meta.permissions as string[]).some(auth.can))
     return "/";
   document.title = `${String(to.meta.title || "社区服务")} · 邻里`;

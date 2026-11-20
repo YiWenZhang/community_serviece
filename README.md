@@ -1,8 +1,8 @@
 # 社区老年服务系统
 
-面向社区工作人员的老年服务管理系统，已实现登录与权限、老人档案、接种核验、通知触达、跟进任务、附件、统计报表、用户及规则管理。AI 模块暂未实现，计划以后作为独立服务开发。
+面向社区工作人员的老年服务管理系统，已实现登录与权限、老人档案、接种核验、通知触达、跟进任务、附件、统计报表、用户及规则管理，以及政策知识库、AI结构化解析和带原文引用的RAG问答。政策问答的配置、演示与使用见[政策问答启动说明](政策问答启动说明.md)。
 
-当前架构：**Vue 前端 → Spring Boot 业务服务 → MySQL**。后端各业务模块按领域分包，统一打包为一个服务；启动不需要 Nacos、Redis 或 AI 服务。
+当前架构：**Vue 前端 → Spring Boot 服务 → MySQL + 本地Lucene向量索引 → 配置的模型API**。后端按领域分包，统一打包；启动不需要 Nacos、Redis 或独立向量数据库进程。
 
 ## 技术栈
 
@@ -10,7 +10,7 @@
 | --- | --- |
 | 后端 | Java 21、Spring Boot 4.1.1、Spring Security、Spring JDBC、Maven |
 | 前端 | Vue 3、TypeScript、Vite、Pinia、Vue Router、Element Plus、Axios |
-| 数据库 | MySQL 8.0.16 及以上，31 张非 AI 表 |
+| 数据库 | MySQL 8.0.16 及以上，31 张业务表与6张AI表；Lucene 9.12.2 |
 | 接口与导出 | OpenAPI / Swagger UI、Apache POI（Excel、Word） |
 
 ## 队友首次运行（Windows / PowerShell）
@@ -42,7 +42,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\database\本机导入.ps1 
 
 按提示输入现有 MySQL `root` 密码，等待显示 `导入成功：community_elder_service`。使用其他已有建库账号时，可追加 `-MySqlUser 你的账号`。
 
-脚本读取 `database/导入数据库.sql`，创建数据库、31 张表及少量虚构示例数据，**不需要提前手动创建数据库**。每台电脑只首次导入一次；数据库已存在或导入报错时，先检查原因，不要删除数据库或忽略错误重导。后端不会自动建表。
+脚本读取 `database/导入数据库.sql`，创建数据库、31 张业务表及少量虚构示例数据，**不需要提前手动创建数据库**。每台电脑只首次导入一次；数据库已存在或导入报错时，先检查原因，不要删除数据库或忽略错误重导。1.1.0后端首次启动会增量创建AI表；不会重建现有业务表。
 
 ### 3. 构建后端并安装前端依赖
 

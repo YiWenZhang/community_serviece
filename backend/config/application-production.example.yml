@@ -6,8 +6,11 @@ server:
       cookie:
         secure: true
 app:
+  ai:
+    migrate: false
   public-docs: false
   storage: /data/community-service
 # DB_URL、DB_USERNAME、DB_PASSWORD、APP_AES_KEY、APP_HMAC_KEY由部署环境注入。
 # 生产数据库账号不使用root；仅授予本服务库所需DML及规定审计权限。
-# 本服务不会自动建库、建表、删除表或导入示例数据。
+# 部署前由数据库管理员在业务库执行src/main/resources/ai-schema.sql。
+# migrate=false时运行账号不需要DDL权限，不会自动建表；不自动建库或导入业务样例。

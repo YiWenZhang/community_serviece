@@ -6,7 +6,7 @@ if ($taskService.Status -ne 'Running') {
     try { Start-Service -Name MySQL80 }
     catch { throw 'MySQL尚未启动。请在管理员PowerShell执行 Start-Service MySQL80，再运行本脚本。' }
 }
-if (-not (Test-Path -LiteralPath (Join-Path $taskProjectRoot 'backend/target/community-service-1.0.0.jar'))) {
+if (-not (Test-Path -LiteralPath (Join-Path $taskProjectRoot 'backend/target/community-service-1.1.0.jar'))) {
     throw '缺少后端JAR，请先进入backend执行 mvn package。'
 }
 foreach ($taskPort in @(8080,5173)) {
