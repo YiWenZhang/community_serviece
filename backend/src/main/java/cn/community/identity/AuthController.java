@@ -130,6 +130,9 @@ public class AuthController {
             a.id(),
             "username",
             a.username(),
+            "displayName",
+            db.one("SELECT display_name FROM sys_user WHERE id=:id", Db.p("id", a.id()))
+                .get("display_name"),
             "communityId",
             a.communityId(),
             "communities",

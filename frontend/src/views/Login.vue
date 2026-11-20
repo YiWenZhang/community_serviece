@@ -4,7 +4,7 @@ import { useRouter } from "vue-router";
 import { useAuth } from "../stores";
 const auth = useAuth(),
   router = useRouter();
-const form = reactive({ username: "admin_demo", password: "" });
+const form = reactive({ username: "admin", password: "" });
 const loading = ref(false),
   error = ref("");
 async function submit() {
@@ -81,10 +81,10 @@ async function submit() {
           <strong>第一次使用？</strong>
           <p>
             管理员账号为
-            admin_demo，初始密码为123456（弱），与MySQL密码不同。已修改密码的账号请使用自己的密码。
+            admin，初始密码为123456（弱），与MySQL密码不同。已修改密码的账号请使用自己的密码。
           </p>
           <p>
-            网格员、统计员需先由管理员启用；新账号初始密码为123456。登录后可在右上角修改密码。
+            初始账号为stats、grid1至grid5，均已启用。新账号初始密码为123456；登录后可在右上角修改密码。
           </p>
         </div>
       </form>

@@ -22,10 +22,20 @@ public class ElderController {
       @RequestParam(required = false) String elderNo,
       @RequestParam(required = false) Integer birthMonth,
       @RequestParam(required = false) String vaccinationStatus,
-      @RequestParam(required = false) Long needId) {
+      @RequestParam(required = false) Long needId,
+      @RequestParam(required = false) String name,
+      @RequestParam(required = false) String phone) {
     return Api.ok(
         service.list(
-            auth.current(), page, pageSize, elderNo, birthMonth, vaccinationStatus, needId));
+            auth.current(),
+            page,
+            pageSize,
+            elderNo,
+            birthMonth,
+            vaccinationStatus,
+            needId,
+            name,
+            phone));
   }
 
   @GetMapping("/{id}")

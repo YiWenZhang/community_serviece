@@ -43,7 +43,9 @@ public class AiBootstrap implements ApplicationRunner {
     if (!initialKey.isBlank()) {
       for (var a :
           db.list(
-              "SELECT u.id,u.community_id FROM sys_user u WHERE u.username='admin_demo'",
+              "SELECT MIN(u.id) AS id,c.id AS community_id FROM community c CROSS JOIN sys_user u"
+                  + " JOIN sys_user_role ur ON ur.user_id=u.id JOIN sys_role r ON r.id=ur.role_id"
+                  + " WHERE r.code='ADMIN' AND r.status='ACTIVE' GROUP BY c.id",
               Map.of())) {
         if (db.count(
                 "SELECT COUNT(*) FROM ai_provider WHERE community_id=:community AND kind='CHAT'",

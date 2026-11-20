@@ -25,7 +25,19 @@ public class Privacy {
               && !ID.matcher(normalized).find()
               && !OLD_ID.matcher(normalized).find()
               && !ADDRESS.matcher(normalized.replaceAll("[\\s\\p{Z}]", "")).find(),
-          "不得录入手机号、身份证号或详细地址，请先脱敏");
+          "身份证号禁止录入；姓名、电话和住址请填写在老人档案的专用加密字段，勿放入备注或政策问答");
+    }
+    return text;
+  }
+
+  public String checkIdentity(String text) {
+    if (text != null) {
+      String normalized =
+          Normalizer.normalize(text, Normalizer.Form.NFKC)
+              .replaceAll("[\\p{Cf}]", "")
+              .replaceAll("(?<=\\d)[\\s\\p{Z}—-]+(?=\\d)", "");
+      Problem.require(
+          !ID.matcher(normalized).find() && !OLD_ID.matcher(normalized).find(), "禁止录入或保存身份证号");
     }
     return text;
   }

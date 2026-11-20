@@ -70,13 +70,19 @@ public class NoticeService {
   }
 
   public Map<String, Object> recipient(Actor a, long id, boolean lock) {
-    return db.one(
-        "SELECT r.* FROM notice_recipient r JOIN elder_profile e ON e.id=r.elder_id WHERE r.id=:id"
-            + " AND r.community_id=:community AND (e.owner_user_id=:actor OR "
-            + a.admin()
-            + ")"
-            + (lock ? " FOR UPDATE" : ""),
-        Db.p("id", id, "community", a.communityId(), "actor", a.id()));
+    return elders.reference(
+        db.one(
+            "SELECT r.*,e.elder_no_cipher,e.personal_info_cipher FROM notice_recipient r JOIN"
+                + " elder_profile e ON e.id=r.elder_id WHERE r.id=:id AND r.community_id=:community"
+                + " AND (e.owner_user_id=:actor OR "
+                + a.admin()
+                + ")"
+                + (lock ? " FOR UPDATE" : ""),
+            Db.p("id", id, "community", a.communityId(), "actor", a.id())));
+  }
+
+  public java.util.List<Map<String, Object>> references(java.util.List<Map<String, Object>> rows) {
+    return rows.stream().map(elders::reference).toList();
   }
 
   public Object list(Actor a, int page, int size) {
@@ -115,12 +121,14 @@ public class NoticeService {
             p);
     n.put(
         "recipients",
-        db.list(
-            "SELECT r.* FROM notice_recipient r JOIN elder_profile e ON e.id=r.elder_id WHERE"
-                + " r.notice_id=:id AND (e.owner_user_id=:actor OR "
-                + a.admin()
-                + ")",
-            p));
+        references(
+            db.list(
+                "SELECT r.*,e.elder_no_cipher,e.personal_info_cipher FROM notice_recipient r JOIN"
+                    + " elder_profile e ON e.id=r.elder_id WHERE r.notice_id=:id AND"
+                    + " (e.owner_user_id=:actor OR "
+                    + a.admin()
+                    + ")",
+                p)));
     return n;
   }
 

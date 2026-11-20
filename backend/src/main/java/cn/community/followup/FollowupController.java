@@ -74,16 +74,20 @@ public class FollowupController {
       p.put("status", status);
     }
     if (overdue) where += " AND t.status IN ('PENDING','PROCESSING') AND t.due_at<UTC_TIMESTAMP(3)";
-    return Api.ok(
+    var result =
         db.page(
-            "SELECT t.*,IF(t.status IN ('PENDING','PROCESSING') AND t.due_at<UTC_TIMESTAMP(3),1,0)"
-                + " AS overdue"
+            "SELECT t.*,e.elder_no_cipher,e.personal_info_cipher,IF(t.status IN"
+                + " ('PENDING','PROCESSING') AND t.due_at<UTC_TIMESTAMP(3),1,0) AS overdue"
                 + where
                 + " ORDER BY t.due_at,t.id",
             "SELECT COUNT(*)" + where,
             p,
             page,
-            pageSize));
+            pageSize);
+    @SuppressWarnings("unchecked")
+    var items = (java.util.List<java.util.Map<String, Object>>) result.get("items");
+    result.put("items", notices.references(items));
+    return Api.ok(result);
   }
 
   @GetMapping("/{id}")
@@ -91,7 +95,9 @@ public class FollowupController {
   public Object detail(@PathVariable long id) {
     var a = auth.require("followup:read");
     var t = db.one("SELECT * FROM followup_task WHERE id=:id", Db.p("id", id));
-    notices.recipient(a, Db.id(t, "recipient_id"), false);
+    var person = notices.recipient(a, Db.id(t, "recipient_id"), false);
+    t.put("elderName", person.get("elderName"));
+    t.put("elderNo", person.get("elderNo"));
     t.put(
         "records",
         db.list(

@@ -189,9 +189,7 @@ onMounted(async () => {
       suffix="条"
       :icon="Timer"
       tone="gold"
-      :hint="
-        stats.overdue ? `其中 ${stats.overdue} 项已逾期` : '暂无逾期任务'
-      "
+      :hint="stats.overdue ? `其中 ${stats.overdue} 项已逾期` : '暂无逾期任务'"
       hint-tone="warn"
       :hint-icon="WarningFilled"
     />
@@ -249,9 +247,9 @@ onMounted(async () => {
       :data="rows"
       empty-text="暂无符合条件的跟进任务"
       ><el-table-column prop="id" label="任务编号" width="90" /><el-table-column
-        prop="recipientId"
-        label="通知对象"
-        width="100"
+        prop="elderName"
+        label="老人姓名"
+        min-width="110"
       /><el-table-column label="任务类型" min-width="125"
         ><template #default="{ row }">{{
           label(row.taskType)
@@ -293,7 +291,7 @@ onMounted(async () => {
   </section>
   <el-dialog v-model="open" title="记录本次跟进" width="720px" destroy-on-close
     ><p class="hint">
-      任务 #{{ task.id }} ·
+      {{ task.elderName }} · 任务 #{{ task.id }} ·
       {{
         label(task.taskType)
       }}。完成跟进需要填写实际结果，系统会同步维护通知状态。

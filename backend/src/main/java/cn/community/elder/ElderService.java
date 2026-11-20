@@ -17,9 +17,20 @@ public class ElderService {
       @Pattern(regexp = "\\d{4}-(0[1-9]|1[0-2])") @NotNull String birthMonth,
       @Size(max = 500) String remark,
       @NotNull Set<Long> needIds,
-      Long ownerUserId) {
+      Long ownerUserId,
+      @NotNull @jakarta.validation.Valid ElderPersonalInfo.Info personalInfo) {
+    public Draft(
+        Long gridId,
+        String sex,
+        String birthMonth,
+        String remark,
+        Set<Long> needIds,
+        Long ownerUserId) {
+      this(gridId, sex, birthMonth, remark, needIds, ownerUserId, null);
+    }
+
     public Draft(Long gridId, String sex, String birthMonth, String remark, Set<Long> needIds) {
-      this(gridId, sex, birthMonth, remark, needIds, null);
+      this(gridId, sex, birthMonth, remark, needIds, null, null);
     }
   }
 
@@ -55,13 +66,16 @@ public class ElderService {
   private final Audit audit;
   private final Privacy privacy;
   private final Auth auth;
+  private final ElderPersonalInfo personal;
 
-  public ElderService(Db db, Crypto crypto, Audit audit, Privacy privacy, Auth auth) {
+  public ElderService(
+      Db db, Crypto crypto, Audit audit, Privacy privacy, Auth auth, ElderPersonalInfo personal) {
     this.db = db;
     this.crypto = crypto;
     this.audit = audit;
     this.privacy = privacy;
     this.auth = auth;
+    this.personal = personal;
   }
 
   public Map<String, Object> owned(Actor a, long id, boolean lock) {
@@ -78,7 +92,14 @@ public class ElderService {
     var copy = new LinkedHashMap<>(row);
     copy.put("elderNo", crypto.decrypt((byte[]) copy.remove("elder_no_cipher")));
     copy.remove("elder_no_hash");
+    copy.putAll(personal.read(copy.remove("personal_info_cipher")));
+    copy.remove("name_hash");
+    copy.remove("phone_hash");
     return copy;
+  }
+
+  public Map<String, Object> reference(Map<String, Object> row) {
+    return personal.reference(row);
   }
 
   public Map<String, Object> detail(Actor a, long id) {
@@ -107,6 +128,19 @@ public class ElderService {
       Integer month,
       String vaccineStatus,
       Long needId) {
+    return list(a, page, size, elderNo, month, vaccineStatus, needId, null, null);
+  }
+
+  public Object list(
+      Actor a,
+      int page,
+      int size,
+      String elderNo,
+      Integer month,
+      String vaccineStatus,
+      Long needId,
+      String name,
+      String phone) {
     a.require("elder:read");
     var p = a.scope();
     String where =
@@ -116,6 +150,14 @@ public class ElderService {
     if (elderNo != null && !elderNo.isBlank()) {
       where += " AND e.elder_no_hash=:hash";
       p.put("hash", crypto.hash(elderNo.trim()));
+    }
+    if (name != null && !name.isBlank()) {
+      where += " AND e.name_hash=:nameHash";
+      p.put("nameHash", personal.searchHash("name", name));
+    }
+    if (phone != null && !phone.isBlank()) {
+      where += " AND e.phone_hash=:phoneHash";
+      p.put("phoneHash", personal.searchHash("phone", phone));
     }
     if (month != null) {
       Problem.require(month >= 1 && month <= 12, "出生月份需1至12");
@@ -166,6 +208,7 @@ public class ElderService {
         Db.p("year", year));
     String number = "SH-L-" + year + "-" + String.format(Locale.ROOT, "%03d", next);
     YearMonth birth = YearMonth.parse(b.birthMonth());
+    var encryptedPersonal = personal.fields(b.personalInfo());
     long id =
         db.insert(
             "elder_profile",
@@ -197,7 +240,13 @@ public class ElderService {
                 "remark",
                 b.remark(),
                 "created_by",
-                a.id()));
+                a.id(),
+                "personal_info_cipher",
+                encryptedPersonal.get("personal_info_cipher"),
+                "name_hash",
+                encryptedPersonal.get("name_hash"),
+                "phone_hash",
+                encryptedPersonal.get("phone_hash")));
     db.insert(
         "elder_assignment_history",
         Db.p(
@@ -224,6 +273,26 @@ public class ElderService {
     owned(a, id, true);
     validate(a, b.profile());
     var d = b.profile();
+    var encryptedPersonal = personal.fields(d.personalInfo());
+    // Legacy internal callers without a private profile preserve existing encrypted values.
+    if (d.personalInfo() != null)
+      db.update(
+          "UPDATE elder_profile SET"
+              + " personal_info_cipher=:cipher,name_hash=:nameHash,phone_hash=:phoneHash WHERE"
+              + " id=:id AND version=:v AND community_id=:community",
+          Db.p(
+              "cipher",
+              encryptedPersonal.get("personal_info_cipher"),
+              "nameHash",
+              encryptedPersonal.get("name_hash"),
+              "phoneHash",
+              encryptedPersonal.get("phone_hash"),
+              "id",
+              id,
+              "v",
+              b.version(),
+              "community",
+              a.communityId()));
     YearMonth birth = YearMonth.parse(d.birthMonth());
     Problem.changed(
         db.update(
@@ -486,6 +555,7 @@ public class ElderService {
   }
 
   private void validate(Actor a, Draft b) {
+    personal.validate(b.personalInfo());
     privacy.check(b.remark());
     YearMonth birth = YearMonth.parse(b.birthMonth());
     Problem.require(

@@ -10,4 +10,4 @@ $taskMigration=Get-Content -LiteralPath (Join-Path $PSScriptRoot 'migrations/V00
 $taskSql="USE ``$Database``;`n"+$taskMigration+"`nSELECT version,applied_at FROM app_schema_version WHERE version=2;"
 $taskSql | & $MySqlExe --no-defaults --protocol=TCP "--host=$MySqlHost" "--port=$MySqlPort" "--user=$MySqlUser" --password --default-character-set=utf8mb4 --connect-timeout=10
 if($LASTEXITCODE -ne 0){throw '升级未完成。请保留SQL错误信息，修复后可重新执行本增量脚本；不要重导初始化库。'}
-Write-Host '多社区权限升级完成。请重新构建并启动1.2.0后端。' -ForegroundColor Green
+Write-Host '多社区权限升级完成。请重新构建并启动当前版本后端，版本以backend/pom.xml及最新版更新说明为准。' -ForegroundColor Green

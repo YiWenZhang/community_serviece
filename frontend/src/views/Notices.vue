@@ -391,8 +391,8 @@ onMounted(async () => {
         label="批次编号"
         width="100"
       /><el-table-column
-        prop="elderId"
-        label="老人内部编号"
+        prop="elderName"
+        label="老人姓名"
         min-width="115"
       /><el-table-column label="接收状态" min-width="120"
         ><template #default="{ row }"
@@ -521,7 +521,7 @@ onMounted(async () => {
             ><el-option
               v-for="e in elderOptions"
               :key="e.id"
-              :label="e.elderNo"
+              :label="`${e.name || '待补录'}（${e.elderNo}）`"
               :value="e.id" /></el-select
           ><small class="selection-help"
             >选择器列出本人最近 100 条档案；通知只会发给选中的对象。</small
@@ -606,8 +606,8 @@ onMounted(async () => {
         <h3>本人可见的接收对象</h3>
         <el-table :data="detail.recipients || []"
           ><el-table-column prop="id" label="对象编号" /><el-table-column
-            prop="elderId"
-            label="老人内部编号" /><el-table-column label="接收状态"
+            prop="elderName"
+            label="老人姓名" /><el-table-column label="接收状态"
             ><template #default="{ row }"
               ><Status :value="row.receiptStatus" /></template></el-table-column
         ></el-table></div></template

@@ -169,10 +169,14 @@ onBeforeUnmount(() => window.removeEventListener("session-expired", expired));
                 :value="c.id"
             /></el-select>
             <span class="today">{{ today }}</span><span class="avatar">{{
-              auth.user.username.slice(0, 1).toUpperCase()
+              (auth.user.displayName || auth.user.username).slice(0, 1)
             }}</span>
             <div class="identity">
-              <strong>{{ auth.user.username }}</strong><small>{{
+              <strong>{{
+                auth.user.displayName || auth.user.username
+              }}</strong><small>{{
+                auth.user.username +
+                " · " +
                 auth.user.roles.map(label).join(" / ")
               }}</small>
             </div>

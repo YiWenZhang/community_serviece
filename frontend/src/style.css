@@ -28,6 +28,35 @@
 .community-overview h2 {
   margin-bottom: 8px;
 }
+.community-overview > div {
+  min-width: 0;
+}
+.community-overview .intro-toggle {
+  display: none;
+}
+.home-grid > .panel {
+  min-width: 0;
+}
+@media (max-width: 760px) {
+  .community-overview {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .community-overview p {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 4;
+    overflow: hidden;
+  }
+  .community-overview .intro-expanded p {
+    display: block;
+    -webkit-line-clamp: unset;
+  }
+  .community-overview .intro-toggle {
+    display: inline-flex;
+    padding-left: 0;
+  }
+}
 .community-overview p {
   margin: 0;
   white-space: pre-wrap;

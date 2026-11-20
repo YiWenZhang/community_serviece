@@ -182,7 +182,7 @@ onBeforeUnmount(() => clearInterval(timer));
     <el-table
       v-loading="loading"
       :data="rows"
-      empty-text="知识库还是空的，先上传项目示范文档试一试"
+      empty-text="知识库尚无政策，请上传有效的政策原文或社区内部服务规范"
     >
       <el-table-column label="政策文档" min-width="240"
         ><template #default="{ row }"
@@ -329,7 +329,7 @@ onBeforeUnmount(() => clearInterval(timer));
         type="warning"
         :closable="false"
       />
-      <h3 class="detail-heading">AI 结构化摘要</h3>
+      <h3 class="detail-heading">结构化摘要</h3>
       <p class="policy-original">
         {{ detail.summary || "解析完成后会显示摘要。" }}
       </p>

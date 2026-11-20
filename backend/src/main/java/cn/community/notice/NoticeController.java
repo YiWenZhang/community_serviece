@@ -69,13 +69,17 @@ public class NoticeController {
       where += " AND r.receipt_status=:status";
       p.put("status", receiptStatus);
     }
-    return Api.ok(
+    var result =
         db.page(
-            "SELECT r.*" + where + " ORDER BY r.id DESC",
+            "SELECT r.*,e.elder_no_cipher,e.personal_info_cipher" + where + " ORDER BY r.id DESC",
             "SELECT COUNT(*)" + where,
             p,
             page,
-            pageSize));
+            pageSize);
+    @SuppressWarnings("unchecked")
+    var items = (java.util.List<java.util.Map<String, Object>>) result.get("items");
+    result.put("items", notices.references(items));
+    return Api.ok(result);
   }
 
   @GetMapping("/notice-recipients/{id}")

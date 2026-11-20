@@ -1,0 +1,765 @@
+{
+  "version": "2026.11-v2",
+  "description": "四社区业务初始数据；人员与档案为合成资料，公开政策为来源全文，内部规范为本项目编制。",
+  "communities": [
+    {
+      "id": 1,
+      "code": "ZHIYUAN",
+      "name": "智园",
+      "color": "#25776e",
+      "theme": "智慧助老 · 邻里互助",
+      "grids": [
+        "智园北片网格",
+        "智园南片网格"
+      ],
+      "description": "智园以成熟居住区和退休职工家庭为主要服务场景，围绕“智慧助老、邻里互助”建设便民养老服务网络。社区设综合受理、午间助餐、数字助老课堂和邻里议事四类服务单元，重点回应独居老人用餐、线上办事和日常联系需求。北片网格负责常态探访与信息更新，南片网格衔接助餐登记和活动通知；跨社区网格员按本人负责档案提供补充服务。\n综合受理时间为工作日09:00—12:00、14:00—17:00；周二上午开设数字助老课堂，周四下午开展邻里交流。老人可线下提出申请，网格员登记需求、协助对接并回访；不以使用智能手机作为享受服务的前提。收费项目须事前告知并由服务机构公示，不承诺未经主管部门核定的补贴。社区坚持自愿参与、最少收集、责任到人，建立受理、评估、转介、回访的服务闭环。"
+    },
+    {
+      "id": 2,
+      "code": "HUIYUAN",
+      "name": "慧园",
+      "color": "#9b713f",
+      "theme": "温暖助餐 · 家庭支持",
+      "grids": [
+        "慧园东片网格",
+        "慧园西片网格"
+      ],
+      "description": "慧园面向居家养老和家庭照护需求，形成“温暖助餐、家庭支持”的社区服务特色。社区重点提供助餐需求受理、照护资源转介、照护者交流和健康科普，优先了解高龄、独居及行动不便老人面临的实际困难。东片网格侧重常态需求联系，西片网格负责重点对象跟进与家庭支持，网格员之间共享事项进度但不越权读取对方负责档案。\n综合受理时间为工作日08:30—11:30、13:30—17:00；助餐需求在工作日上午集中核对，周三下午安排家庭照护交流，周五上午开展健康科普。送餐、照护及就医陪同事项由具备相应条件的服务提供者确认承接，社区负责联络与跟踪，不代替专业评估或医疗判断。对暂时无法满足的需求说明原因并提供其他可行渠道，回访时听取老人本人意见，持续改进服务质量。"
+    },
+    {
+      "id": 3,
+      "code": "ZHUOYUAN",
+      "name": "卓园",
+      "color": "#4c6ba2",
+      "theme": "健康促进 · 活力银龄",
+      "grids": [
+        "卓园中心网格",
+        "卓园书香网格"
+      ],
+      "description": "卓园以退休后社会参与和健康生活支持为重点，建设“健康促进、活力银龄”的社区养老服务空间。社区设置银龄学堂、健康教育、文体活动和便民咨询服务单元，同时关注从活力养老向照护支持过渡的老人。中心网格负责健康活动联系与预约信息核对，书香网格衔接阅读、学习和志愿互助；跨社区责任人在授权范围内分别负责自己的老人。\n综合受理时间为工作日09:00—12:00、14:00—17:30；周一下午开展健康教育，周三上午安排阅读交流，周五下午组织适宜的文体活动。活动前说明强度、人数与场地要求，老人自主选择，健康风险和接种资格由医疗机构评估。对听力、出行或数字使用有困难的老人提供适配沟通方式，支持线下登记，避免以一次缺席判断无服务需求。"
+    },
+    {
+      "id": 4,
+      "code": "YUEYUAN",
+      "name": "越园",
+      "color": "#865e91",
+      "theme": "安心探访 · 无障碍关怀",
+      "grids": [
+        "越园和邻网格",
+        "越园安居网格"
+      ],
+      "description": "越园以高龄、独居及出行不便老人的日常支持为重点，突出“安心探访、无障碍关怀”。社区通过关爱联系、居家安全提示、适老化改造需求转介和助餐支持，帮助老人维持熟悉环境中的生活。和邻网格负责日常联系与邻里互助，安居网格负责重点需求转介和事项回访；同一社区的不同网格员保持本人负责人范围，交接事项由管理员办理。\n综合受理时间为工作日08:30—12:00、14:00—17:00；周二、周四安排预约探访，周五下午汇总待办与回访情况。探访遵循本人意愿，先联系再上门，对未联系上、明确拒绝和紧急异常分别记录处置，不把家属接听或公告张贴等同于老人已接收。紧急问题优先联系相应应急救援渠道，社区不代替专业救援；一般事项落实承接人、办理进度和结果反馈。"
+    }
+  ],
+  "users": [
+    {
+      "id": 1,
+      "username": "admin",
+      "displayName": "周明远",
+      "role": "ADMIN",
+      "communities": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "home": 1
+    },
+    {
+      "id": 2,
+      "username": "stats",
+      "displayName": "许文静",
+      "role": "STATISTICIAN",
+      "communities": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "home": 1
+    },
+    {
+      "id": 3,
+      "username": "grid1",
+      "displayName": "陈志强",
+      "role": "GRID_WORKER",
+      "communities": [
+        1
+      ],
+      "home": 1
+    },
+    {
+      "id": 4,
+      "username": "grid2",
+      "displayName": "李晓敏",
+      "role": "GRID_WORKER",
+      "communities": [
+        2
+      ],
+      "home": 2
+    },
+    {
+      "id": 5,
+      "username": "grid3",
+      "displayName": "王佳宁",
+      "role": "GRID_WORKER",
+      "communities": [
+        1,
+        2
+      ],
+      "home": 1
+    },
+    {
+      "id": 6,
+      "username": "grid4",
+      "displayName": "赵文博",
+      "role": "GRID_WORKER",
+      "communities": [
+        3,
+        4
+      ],
+      "home": 3
+    },
+    {
+      "id": 7,
+      "username": "grid5",
+      "displayName": "孙悦",
+      "role": "GRID_WORKER",
+      "communities": [
+        1,
+        3,
+        4
+      ],
+      "home": 4
+    }
+  ],
+  "serviceNeeds": [
+    {
+      "id": 1,
+      "code": "BIRTHDAY_CARE",
+      "name": "生日关怀"
+    },
+    {
+      "id": 2,
+      "code": "VACCINE_REMINDER",
+      "name": "疫苗接种提醒"
+    },
+    {
+      "id": 3,
+      "code": "HEALTH_LECTURE",
+      "name": "健康讲座"
+    },
+    {
+      "id": 4,
+      "code": "MEAL_SUPPORT",
+      "name": "助餐服务"
+    },
+    {
+      "id": 5,
+      "code": "HOME_VISIT",
+      "name": "探访关爱"
+    },
+    {
+      "id": 6,
+      "code": "HOME_CARE",
+      "name": "居家照护转介"
+    },
+    {
+      "id": 7,
+      "code": "DIGITAL_HELP",
+      "name": "数字助老"
+    },
+    {
+      "id": 8,
+      "code": "ACCESSIBILITY",
+      "name": "适老化需求转介"
+    },
+    {
+      "id": 9,
+      "code": "CULTURAL_ACTIVITY",
+      "name": "文体与学习"
+    },
+    {
+      "id": 10,
+      "code": "CAREGIVER_SUPPORT",
+      "name": "家庭照护支持"
+    }
+  ],
+  "elders": [
+    {
+      "community": 1,
+      "owner": 3,
+      "gridIndex": 0,
+      "sex": "MALE",
+      "birthMonth": "1947-11",
+      "needs": [
+        1,
+        2,
+        4,
+        5
+      ],
+      "remark": "独居，日常生活基本自理；工作日午餐需要助餐支持，愿意参加邻里活动；宜周二上午预约联系，必要时由女儿转告。",
+      "vaccine": "COMPLETED",
+      "personalInfo": {
+        "name": "宋江",
+        "phone": "19900000001",
+        "address": "智园社区1号楼1单元101室",
+        "familyName": "宋某",
+        "familyRelation": "女儿",
+        "familyPhone": "18800000001"
+      }
+    },
+    {
+      "community": 1,
+      "owner": 3,
+      "gridIndex": 0,
+      "sex": "MALE",
+      "birthMonth": "1955-04",
+      "needs": [
+        3,
+        7,
+        9
+      ],
+      "remark": "与配偶共同生活，喜欢阅读；线上挂号和智能手机使用需要指导；愿意参加数字助老课堂，活动通知优先本人接收。",
+      "vaccine": "NOT_VACCINATED",
+      "personalInfo": {
+        "name": "卢俊义",
+        "phone": "19900000002",
+        "address": "智园社区2号楼2单元102室",
+        "familyName": "卢某",
+        "familyRelation": "儿子",
+        "familyPhone": "18800000002"
+      }
+    },
+    {
+      "community": 1,
+      "owner": 5,
+      "gridIndex": 1,
+      "sex": "MALE",
+      "birthMonth": "1942-09",
+      "needs": [
+        4,
+        5,
+        6
+      ],
+      "remark": "高龄，与家人分开居住；短距离出行需陪伴，申请午间助餐和定期探访；女儿可协助转告，服务安排需提前约定。",
+      "vaccine": "UNKNOWN",
+      "personalInfo": {
+        "name": "吴用",
+        "phone": "19900000003",
+        "address": "智园社区3号楼1单元103室",
+        "familyName": "吴某",
+        "familyRelation": "女儿",
+        "familyPhone": "18800000003"
+      }
+    },
+    {
+      "community": 1,
+      "owner": 5,
+      "gridIndex": 1,
+      "sex": "MALE",
+      "birthMonth": "1958-01",
+      "needs": [
+        2,
+        3,
+        9
+      ],
+      "remark": "与配偶居住，能够自主外出；关注冬季健康和预防接种信息；愿意参加适宜强度的集体活动，接种时间需与家人商议。",
+      "vaccine": "NOT_VACCINATED",
+      "personalInfo": {
+        "name": "公孙胜",
+        "phone": "19900000004",
+        "address": "智园社区1号楼2单元104室",
+        "familyName": "公某",
+        "familyRelation": "儿子",
+        "familyPhone": "18800000004"
+      }
+    },
+    {
+      "community": 1,
+      "owner": 7,
+      "gridIndex": 1,
+      "sex": "MALE",
+      "birthMonth": "1951-07",
+      "needs": [
+        5,
+        7,
+        8
+      ],
+      "remark": "居家生活基本自理；希望了解扶手、防滑和照明改善渠道；不熟悉线上申请，接受线下协助，周四下午适合回访。",
+      "vaccine": "INELIGIBLE",
+      "personalInfo": {
+        "name": "关胜",
+        "phone": "19900000005",
+        "address": "智园社区2号楼1单元105室",
+        "familyName": "关某",
+        "familyRelation": "女儿",
+        "familyPhone": "18800000005"
+      }
+    },
+    {
+      "community": 2,
+      "owner": 4,
+      "gridIndex": 0,
+      "sex": "MALE",
+      "birthMonth": "1949-02",
+      "needs": [
+        1,
+        4,
+        5
+      ],
+      "remark": "独居，能够自行到助餐点取餐；希望每周工作日午餐有稳定安排；愿意接受关爱联系，通知可请儿子协助转告。",
+      "vaccine": "COMPLETED",
+      "personalInfo": {
+        "name": "林冲",
+        "phone": "19900000006",
+        "address": "慧园社区3号楼2单元106室",
+        "familyName": "林某",
+        "familyRelation": "儿子",
+        "familyPhone": "18800000006"
+      }
+    },
+    {
+      "community": 2,
+      "owner": 4,
+      "gridIndex": 0,
+      "sex": "MALE",
+      "birthMonth": "1940-12",
+      "needs": [
+        4,
+        6,
+        10
+      ],
+      "remark": "高龄，由配偶协助日常照料；备餐和家务负担较重，希望了解照护支持；接受家庭照护资源转介，不需要记录详细病史。",
+      "vaccine": "UNKNOWN",
+      "personalInfo": {
+        "name": "秦明",
+        "phone": "19900000007",
+        "address": "慧园社区1号楼1单元107室",
+        "familyName": "秦某",
+        "familyRelation": "女儿",
+        "familyPhone": "18800000007"
+      }
+    },
+    {
+      "community": 2,
+      "owner": 4,
+      "gridIndex": 0,
+      "sex": "MALE",
+      "birthMonth": "1957-06",
+      "needs": [
+        3,
+        9,
+        10
+      ],
+      "remark": "与家人共同居住，参与照护配偶；希望获得照护者交流及健康教育；周三下午能够参加，活动时长不宜过长。",
+      "vaccine": "NOT_VACCINATED",
+      "personalInfo": {
+        "name": "呼延灼",
+        "phone": "19900000008",
+        "address": "慧园社区2号楼2单元108室",
+        "familyName": "呼某",
+        "familyRelation": "儿子",
+        "familyPhone": "18800000008"
+      }
+    },
+    {
+      "community": 2,
+      "owner": 5,
+      "gridIndex": 1,
+      "sex": "MALE",
+      "birthMonth": "1946-10",
+      "needs": [
+        4,
+        5,
+        8
+      ],
+      "remark": "行动较慢，外出需使用辅助工具；有送餐与居家安全提示需求；服务前先联系本人，未联系上时请家属确认方便时间。",
+      "vaccine": "NOT_VACCINATED",
+      "personalInfo": {
+        "name": "花荣",
+        "phone": "19900000009",
+        "address": "慧园社区3号楼1单元109室",
+        "familyName": "花某",
+        "familyRelation": "女儿",
+        "familyPhone": "18800000009"
+      }
+    },
+    {
+      "community": 2,
+      "owner": 5,
+      "gridIndex": 1,
+      "sex": "MALE",
+      "birthMonth": "1953-03",
+      "needs": [
+        2,
+        4,
+        7
+      ],
+      "remark": "与配偶居住，希望了解助餐菜单和预约流程；能够线下办理，线上操作需指导；接受非紧急事项由家属协助转告。",
+      "vaccine": "COMPLETED",
+      "personalInfo": {
+        "name": "柴进",
+        "phone": "19900000010",
+        "address": "慧园社区1号楼2单元110室",
+        "familyName": "柴某",
+        "familyRelation": "儿子",
+        "familyPhone": "18800000010"
+      }
+    },
+    {
+      "community": 3,
+      "owner": 6,
+      "gridIndex": 0,
+      "sex": "MALE",
+      "birthMonth": "1956-05",
+      "needs": [
+        2,
+        3,
+        9
+      ],
+      "remark": "退休后保持阅读和散步习惯，愿意参与志愿互助；关注接种服务流程，接种意愿需本人确认；偏好工作日上午联系。",
+      "vaccine": "NOT_VACCINATED",
+      "personalInfo": {
+        "name": "李应",
+        "phone": "19900000011",
+        "address": "卓园社区2号楼1单元111室",
+        "familyName": "李某",
+        "familyRelation": "女儿",
+        "familyPhone": "18800000011"
+      }
+    },
+    {
+      "community": 3,
+      "owner": 6,
+      "gridIndex": 0,
+      "sex": "MALE",
+      "birthMonth": "1948-08",
+      "needs": [
+        1,
+        3,
+        5
+      ],
+      "remark": "与配偶居住，参加活动需家人陪同；愿意接受健康科普和节日关怀；已选择固定联系时段，避免午休期间打扰。",
+      "vaccine": "COMPLETED",
+      "personalInfo": {
+        "name": "朱仝",
+        "phone": "19900000012",
+        "address": "卓园社区3号楼2单元112室",
+        "familyName": "朱某",
+        "familyRelation": "儿子",
+        "familyPhone": "18800000012"
+      }
+    },
+    {
+      "community": 3,
+      "owner": 6,
+      "gridIndex": 0,
+      "sex": "MALE",
+      "birthMonth": "1943-11",
+      "needs": [
+        5,
+        6,
+        8
+      ],
+      "remark": "高龄，近距离出行需要协助；希望对接居家支持和无障碍服务资源；不愿参加集体文体活动，但接受个别探访。",
+      "vaccine": "INELIGIBLE",
+      "personalInfo": {
+        "name": "鲁智深",
+        "phone": "19900000013",
+        "address": "卓园社区1号楼1单元113室",
+        "familyName": "鲁某",
+        "familyRelation": "女儿",
+        "familyPhone": "18800000013"
+      }
+    },
+    {
+      "community": 3,
+      "owner": 7,
+      "gridIndex": 1,
+      "sex": "MALE",
+      "birthMonth": "1961-01",
+      "needs": [
+        3,
+        7,
+        9
+      ],
+      "remark": "生活自理，喜欢书画和社区阅读；希望学习线上便民服务；可参与邻里互助，活动通知以本人意愿为准。",
+      "vaccine": "UNKNOWN",
+      "personalInfo": {
+        "name": "武松",
+        "phone": "19900000014",
+        "address": "卓园社区2号楼2单元114室",
+        "familyName": "武某",
+        "familyRelation": "儿子",
+        "familyPhone": "18800000014"
+      }
+    },
+    {
+      "community": 3,
+      "owner": 7,
+      "gridIndex": 1,
+      "sex": "MALE",
+      "birthMonth": "1950-09",
+      "needs": [
+        2,
+        4,
+        9
+      ],
+      "remark": "与家人分开居住，午餐偶有助餐需求；愿意参加健康教育和轻度文体活动；接种预约拟由儿子陪同办理。",
+      "vaccine": "NOT_VACCINATED",
+      "personalInfo": {
+        "name": "董平",
+        "phone": "19900000015",
+        "address": "卓园社区3号楼1单元115室",
+        "familyName": "董某",
+        "familyRelation": "女儿",
+        "familyPhone": "18800000015"
+      }
+    },
+    {
+      "community": 4,
+      "owner": 6,
+      "gridIndex": 0,
+      "sex": "MALE",
+      "birthMonth": "1939-04",
+      "needs": [
+        4,
+        5,
+        6
+      ],
+      "remark": "高龄独居，近亲定期照看；需要稳定关爱联系与午间助餐支持；上门前先约定，未联系上须按关爱规程跟进。",
+      "vaccine": "UNKNOWN",
+      "personalInfo": {
+        "name": "张清",
+        "phone": "19900000016",
+        "address": "越园社区1号楼2单元116室",
+        "familyName": "张某",
+        "familyRelation": "儿子",
+        "familyPhone": "18800000016"
+      }
+    },
+    {
+      "community": 4,
+      "owner": 6,
+      "gridIndex": 0,
+      "sex": "FEMALE",
+      "birthMonth": "1945-07",
+      "needs": [
+        5,
+        8,
+        10
+      ],
+      "remark": "与配偶居住，家庭照护力量有限；关注居家防滑和出行便利，接受适老化需求转介；希望照护者共同参与沟通。",
+      "vaccine": "NOT_VACCINATED",
+      "personalInfo": {
+        "name": "孙二娘",
+        "phone": "19900000017",
+        "address": "越园社区2号楼1单元117室",
+        "familyName": "孙某",
+        "familyRelation": "女儿",
+        "familyPhone": "18800000017"
+      }
+    },
+    {
+      "community": 4,
+      "owner": 7,
+      "gridIndex": 1,
+      "sex": "FEMALE",
+      "birthMonth": "1952-12",
+      "needs": [
+        2,
+        4,
+        7
+      ],
+      "remark": "生活基本自理，工作日有助餐需求；对数字支付和预约操作不熟悉；愿意由女儿协助转告，服务收费需先说明。",
+      "vaccine": "COMPLETED",
+      "personalInfo": {
+        "name": "扈三娘",
+        "phone": "19900000018",
+        "address": "越园社区3号楼2单元118室",
+        "familyName": "扈某",
+        "familyRelation": "儿子",
+        "familyPhone": "18800000018"
+      }
+    },
+    {
+      "community": 4,
+      "owner": 7,
+      "gridIndex": 1,
+      "sex": "FEMALE",
+      "birthMonth": "1941-03",
+      "needs": [
+        4,
+        5,
+        6
+      ],
+      "remark": "高龄，日常活动以居家为主；愿意接受定期探访和照护资源介绍；家属工作日晚上方便联系，社区仅记录脱敏关系和转告结果。",
+      "vaccine": "INELIGIBLE",
+      "personalInfo": {
+        "name": "顾大嫂",
+        "phone": "19900000019",
+        "address": "越园社区1号楼1单元119室",
+        "familyName": "顾某",
+        "familyRelation": "女儿",
+        "familyPhone": "18800000019"
+      }
+    },
+    {
+      "community": 4,
+      "owner": 7,
+      "gridIndex": 1,
+      "sex": "MALE",
+      "birthMonth": "1959-10",
+      "needs": [
+        1,
+        3,
+        9
+      ],
+      "remark": "与配偶共同生活，能够自主参加活动；关注健康生活和文体学习；对接种服务持审慎态度，愿意先到接种机构咨询。",
+      "vaccine": "NOT_VACCINATED",
+      "personalInfo": {
+        "name": "李逵",
+        "phone": "19900000020",
+        "address": "越园社区2号楼2单元120室",
+        "familyName": "李某",
+        "familyRelation": "儿子",
+        "familyPhone": "18800000020"
+      }
+    }
+  ],
+  "policies": [
+    {
+      "path": "初始政策文档/01-特殊困难老年人探访关爱服务指导意见.md",
+      "title": "关于开展特殊困难老年人探访关爱服务的指导意见",
+      "category": "COMMUNITY",
+      "issuer": "民政部等十部门",
+      "policyNo": "民发〔2022〕73号",
+      "effectiveDate": "2022-09-27",
+      "community": null,
+      "nature": "PUBLIC",
+      "sourceUrl": "https://jdjc.mof.gov.cn/fgzd/202210/t20221014_3845853.htm",
+      "sha256": "8144b4f51f5dbcb1078a1d66707c24f629c1a63d14e113e721ca3129231ae62b"
+    },
+    {
+      "path": "初始政策文档/02-积极发展老年助餐服务行动方案.md",
+      "title": "积极发展老年助餐服务行动方案（含印发通知）",
+      "category": "ELDERCARE",
+      "issuer": "民政部等十一部门",
+      "policyNo": "民发〔2023〕58号",
+      "effectiveDate": "2023-10-20",
+      "community": null,
+      "nature": "PUBLIC",
+      "sourceUrl": "https://www.mem.gov.cn/gk/zfxxgkpt/fdzdgknr/202311/t20231114_468483.shtml",
+      "sha256": "3332e6f2cd7e72aa8c52e747b00ca810e91ab288638fc0025003cba287198cf2"
+    },
+    {
+      "path": "初始政策文档/03-中华人民共和国疫苗管理法.md",
+      "title": "中华人民共和国疫苗管理法",
+      "category": "VACCINE",
+      "issuer": "全国人民代表大会常务委员会",
+      "policyNo": "中华人民共和国主席令第三十号",
+      "effectiveDate": "2019-12-01",
+      "community": null,
+      "nature": "PUBLIC",
+      "sourceUrl": "https://www.samr.gov.cn/zw/zfxxgk/fdzdgknr/fgs/art/2023/art_dde03480953841a5912c864dc29003d0.html",
+      "sha256": "ae74bfff28973343b3b6bc1b246923f6e9733d0f5cfacaa7d49cb6995fa04f93"
+    },
+    {
+      "path": "初始政策文档/04-四社区养老服务受理与闭环管理规范.md",
+      "title": "四社区养老服务受理与闭环管理规范",
+      "category": "ELDERCARE",
+      "issuer": "四社区服务管理工作组",
+      "policyNo": "SQ-YL-2026-01",
+      "effectiveDate": "2026-11-20",
+      "community": null,
+      "nature": "INTERNAL",
+      "sourceUrl": null,
+      "sha256": "d5b1f9bc7250991594c0fec20eb9ae57a204d7a5467c5fd92b3dd1f32ace46f5"
+    },
+    {
+      "path": "初始政策文档/05-四社区探访关爱与异常处置规程.md",
+      "title": "四社区探访关爱与异常处置规程",
+      "category": "COMMUNITY",
+      "issuer": "四社区服务管理工作组",
+      "policyNo": "SQ-TF-2026-02",
+      "effectiveDate": "2026-11-20",
+      "community": null,
+      "nature": "INTERNAL",
+      "sourceUrl": null,
+      "sha256": "6da859f044e0d538ffa92457f11f27faea0013dfea1fc7049862d6e23da88420"
+    },
+    {
+      "path": "初始政策文档/06-四社区疫苗告知预约与核验工作规范.md",
+      "title": "四社区疫苗告知预约与核验工作规范",
+      "category": "VACCINE",
+      "issuer": "四社区服务管理工作组",
+      "policyNo": "SQ-YM-2026-03",
+      "effectiveDate": "2026-11-20",
+      "community": null,
+      "nature": "INTERNAL",
+      "sourceUrl": null,
+      "sha256": "69ccb1a6f5f4ad4dfb191f49af0ec4f64f1e5928c23e33adaa10aae4fa3def7e"
+    },
+    {
+      "path": "初始政策文档/07-四社区信息保密与账号使用规范.md",
+      "title": "四社区信息保密与账号使用规范",
+      "category": "OTHER",
+      "issuer": "四社区服务管理工作组",
+      "policyNo": "SQ-AQ-2026-04",
+      "effectiveDate": "2026-11-20",
+      "community": null,
+      "nature": "INTERNAL",
+      "sourceUrl": null,
+      "sha256": "b706ce09075609dc0c34408d241f3e6dcdfb4b30094f1f4363bc3d1ae2af0e90"
+    },
+    {
+      "path": "初始政策文档/08-智园社区服务目录与运行细则.md",
+      "title": "智园社区服务目录与运行细则",
+      "category": "COMMUNITY",
+      "issuer": "智园社区服务管理组",
+      "policyNo": "ZHIYUAN-FW-2026-01",
+      "effectiveDate": "2026-11-20",
+      "community": 1,
+      "nature": "INTERNAL",
+      "sourceUrl": null,
+      "sha256": "76216cfc0a99f526f55195de06fc87da5868b5cd59887437f0d5cd2347c99250"
+    },
+    {
+      "path": "初始政策文档/09-慧园社区服务目录与运行细则.md",
+      "title": "慧园社区服务目录与运行细则",
+      "category": "COMMUNITY",
+      "issuer": "慧园社区服务管理组",
+      "policyNo": "HUIYUAN-FW-2026-01",
+      "effectiveDate": "2026-11-20",
+      "community": 2,
+      "nature": "INTERNAL",
+      "sourceUrl": null,
+      "sha256": "7ff883afd756e6ace9126953e11f55062ca745072221b5ee69c86a906f723d1e"
+    },
+    {
+      "path": "初始政策文档/10-卓园社区服务目录与运行细则.md",
+      "title": "卓园社区服务目录与运行细则",
+      "category": "COMMUNITY",
+      "issuer": "卓园社区服务管理组",
+      "policyNo": "ZHUOYUAN-FW-2026-01",
+      "effectiveDate": "2026-11-20",
+      "community": 3,
+      "nature": "INTERNAL",
+      "sourceUrl": null,
+      "sha256": "2d25d3f1e30e0c30d38634b00c4ad5e050e043ed640a7002fb701a13d7a9985c"
+    },
+    {
+      "path": "初始政策文档/11-越园社区服务目录与运行细则.md",
+      "title": "越园社区服务目录与运行细则",
+      "category": "COMMUNITY",
+      "issuer": "越园社区服务管理组",
+      "policyNo": "YUEYUAN-FW-2026-01",
+      "effectiveDate": "2026-11-20",
+      "community": 4,
+      "nature": "INTERNAL",
+      "sourceUrl": null,
+      "sha256": "295c2a81e1647d580c32df0c8cf661977b3369ccc29c97fedadb02404e3e1e76"
+    }
+  ]
+}

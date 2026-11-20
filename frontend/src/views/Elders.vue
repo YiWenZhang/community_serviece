@@ -24,6 +24,8 @@ const auth = useAuth(),
   stats = ref<Row>({});
 const filters = reactive({
   elderNo: "",
+  name: "",
+  phone: "",
   birthMonth: "",
   vaccinationStatus: "",
   needId: "",
@@ -32,6 +34,12 @@ const editOpen = ref(false),
   saving = ref(false),
   editing = ref<Row | null>(null);
 const form = reactive<Row>({
+  name: "",
+  phone: "",
+  address: "",
+  familyName: "",
+  familyRelation: "",
+  familyPhone: "",
   ownerUserId: "",
   gridId: "",
   sex: "UNKNOWN",
@@ -85,6 +93,15 @@ const vaccinationRate = computed(() =>
 );
 function create() {
   editing.value = null;
+  for (const key of [
+    "name",
+    "phone",
+    "address",
+    "familyName",
+    "familyRelation",
+    "familyPhone",
+  ])
+    form[key] = "";
   Object.assign(form, {
     ownerUserId: auth.user?.roles?.includes("ADMIN")
       ? auth.dictionaries.workers?.[0]?.id
@@ -102,6 +119,15 @@ async function edit(row: Row) {
   try {
     const d = await api(`/elders/${row.id}`);
     editing.value = d;
+    for (const key of [
+      "name",
+      "phone",
+      "address",
+      "familyName",
+      "familyRelation",
+      "familyPhone",
+    ])
+      form[key] = d[key] || "";
     Object.assign(form, {
       gridId: d.gridId,
       sex: d.sex,
@@ -117,11 +143,22 @@ async function edit(row: Row) {
 }
 async function save() {
   if (saving.value) return;
+  if (!form.name?.trim()) return ElMessage.warning("请填写老人姓名");
   if (!form.gridId || !form.birthMonth)
     return ElMessage.warning("请填写网格与出生年月");
   saving.value = true;
   try {
     const profile = {
+      personalInfo: Object.fromEntries(
+        [
+          "name",
+          "phone",
+          "address",
+          "familyName",
+          "familyRelation",
+          "familyPhone",
+        ].map((key) => [key, form[key] || ""]),
+      ),
       ownerUserId: editing.value ? null : form.ownerUserId,
       gridId: form.gridId,
       sex: form.sex,
@@ -323,7 +360,25 @@ async function saveTransfer() {
           page = 1;
           load();
         "
-      /><el-select v-model="filters.birthMonth" clearable placeholder="出生月份"
+      /><el-input
+        v-model="filters.name"
+        clearable
+        placeholder="完整姓名（精确查询）"
+        @keyup.enter="
+          page = 1;
+          load();
+        "
+      />
+      <el-input
+        v-model="filters.phone"
+        clearable
+        placeholder="完整老人电话（精确查询）"
+        @keyup.enter="
+          page = 1;
+          load();
+        "
+      />
+      <el-select v-model="filters.birthMonth" clearable placeholder="出生月份"
         ><el-option
           v-for="m in 12"
           :key="m"
@@ -357,7 +412,19 @@ async function saveTransfer() {
       v-loading="loading"
       :data="rows"
       empty-text="暂无本人负责的老人档案，可登记或由管理员移交。"
-      ><el-table-column
+      ><el-table-column prop="name" label="老人姓名" min-width="110"
+        ><template #default="{ row }">{{
+          row.name || "待补录"
+        }}</template></el-table-column
+      >
+      <el-table-column prop="phone" label="老人电话" min-width="145" />
+      <el-table-column
+        prop="address"
+        label="家庭住址"
+        min-width="220"
+        show-overflow-tooltip
+      />
+      <el-table-column
         prop="elderNo"
         label="老人编号"
         min-width="175"
@@ -417,10 +484,65 @@ async function saveTransfer() {
     width="650px"
     destroy-on-close
     ><p class="hint">
-      仅登记业务所需信息。编号自动生成，不录入姓名、手机号、身份证或家庭住址。
+      姓名、本人电话、家庭住址及家属联系信息均加密存储，仅授权人员可查看。身份证号禁止录入；备注不要重复填写联系方式。
     </p>
     <el-form label-position="top" @submit.prevent="save"
       ><div class="form-grid">
+        <el-form-item label="老人姓名 *"
+          ><el-input
+            id="elder-name"
+            v-model="form.name"
+            maxlength="40"
+            autocomplete="off"
+            placeholder="填写老人姓名"
+        /></el-form-item>
+        <el-form-item label="老人电话"
+          ><el-input
+            id="elder-phone"
+            v-model="form.phone"
+            maxlength="24"
+            inputmode="tel"
+            placeholder="填写老人手机号或固话"
+        /></el-form-item>
+        <el-form-item label="家庭住址" class="span-2"
+          ><el-input
+            id="elder-address"
+            v-model="form.address"
+            type="textarea"
+            :rows="2"
+            maxlength="200"
+            placeholder="填写上门服务所需住址（加密保存）"
+        /></el-form-item>
+        <el-form-item label="家属姓名 / 称呼"
+          ><el-input
+            id="elder-family-name"
+            v-model="form.familyName"
+            maxlength="40"
+        /></el-form-item>
+        <el-form-item label="家属关系"
+          ><el-input
+            id="elder-family-relation"
+            v-model="form.familyRelation"
+            maxlength="24"
+        /></el-form-item>
+        <el-form-item label="家属电话" class="span-2"
+          ><el-input
+            id="elder-family-phone"
+            v-model="form.familyPhone"
+            maxlength="24"
+            inputmode="tel"
+        /></el-form-item>
+        <el-form-item
+          v-if="!editing && auth.user?.roles?.includes('ADMIN')"
+          label="负责网格员 *"
+          class="span-2"
+          ><el-select v-model="form.ownerUserId"
+            ><el-option
+              v-for="w in auth.dictionaries.workers"
+              :key="w.id"
+              :label="`${w.displayName}（${w.username}）`"
+              :value="w.id" /></el-select
+        ></el-form-item>
         <el-form-item label="所属网格 *"
           ><el-select v-model="form.gridId"
             ><el-option
@@ -479,7 +601,22 @@ async function saveTransfer() {
     destroy-on-close
     ><template v-if="detail"
       ><el-descriptions :column="2" border
-        ><el-descriptions-item label="老人编号">{{
+        ><el-descriptions-item label="老人姓名">{{
+          detail.name || "待补录"
+        }}</el-descriptions-item>
+        <el-descriptions-item label="老人电话">{{
+          detail.phone || "—"
+        }}</el-descriptions-item>
+        <el-descriptions-item label="家庭住址" :span="2">{{
+          detail.address || "—"
+        }}</el-descriptions-item>
+        <el-descriptions-item label="家属姓名 / 称呼"
+          >{{ detail.familyName || "—" }}
+          {{ detail.familyRelation || "" }}</el-descriptions-item
+        >
+        <el-descriptions-item label="家属电话">{{
+          detail.familyPhone || "—"
+        }}</el-descriptions-item><el-descriptions-item label="老人编号">{{
           detail.elderNo
         }}</el-descriptions-item
         ><el-descriptions-item label="出生年月"
@@ -532,22 +669,11 @@ async function saveTransfer() {
     width="680px"
     destroy-on-close
     ><p class="hint">
-      {{ vaccineElder.elderNo }} ·
+      {{ vaccineElder.name }} · {{ vaccineElder.elderNo }} ·
       请依据真实核验记录填写；确认通知不等于完成接种。
     </p>
     <el-form label-position="top"
       ><div class="form-grid">
-        <el-form-item
-          v-if="!editing && auth.user?.roles?.includes('ADMIN')"
-          label="负责网格员 *"
-          class="span-2"
-          ><el-select v-model="form.ownerUserId"
-            ><el-option
-              v-for="w in auth.dictionaries.workers"
-              :key="w.id"
-              :label="`${w.displayName}（${w.username}）`"
-              :value="w.id" /></el-select
-        ></el-form-item>
         <el-form-item label="服务周期 *" class="span-2"
           ><el-select v-model="vaccineForm.campaignId" @change="selectCampaign"
             ><el-option

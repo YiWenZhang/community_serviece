@@ -3,7 +3,7 @@ $taskProjectRoot = $PSScriptRoot
 foreach ($taskPort in @(8443,5443)) {
     if (Get-NetTCPConnection -LocalPort $taskPort -State Listen -ErrorAction SilentlyContinue) { throw "端口$taskPort已被占用，请先检查对应服务。脚本不会停止其他程序。" }
 }
-if (-not (Test-Path -LiteralPath (Join-Path $taskProjectRoot 'backend/target/community-service-1.3.0.jar'))) { throw '请先进入backend执行 mvn package。' }
+if (-not (Test-Path -LiteralPath (Join-Path $taskProjectRoot 'backend/target/community-service-1.5.0.jar'))) { throw '请先进入backend执行 mvn package。' }
 $taskService = Get-Service MySQL80 -ErrorAction Stop
 if ($taskService.Status -ne 'Running') { Start-Service MySQL80 -ErrorAction Stop }
 & (Join-Path $taskProjectRoot 'backend/生成本机HTTPS证书.ps1')

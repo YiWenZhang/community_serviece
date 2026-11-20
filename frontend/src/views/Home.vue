@@ -15,7 +15,8 @@ const auth = useAuth(),
   stats = ref<Row>({}),
   tasks = ref<Row[]>([]),
   loading = ref(false),
-  error = ref("");
+  error = ref(""),
+  expandedIntro = ref(false);
 const community = computed(() =>
   auth.communities.find((c) => c.id === auth.communityId),
 );
@@ -55,7 +56,11 @@ onMounted(load);
     <div>
       <span class="eyebrow">今日工作 · COMMUNITY CARE</span>
       <h1>每一次服务，都有回应。</h1>
-      <p>你好，{{ auth.user?.username }}。从这里开始今天的社区关怀。</p>
+      <p>
+        你好，{{
+          auth.user?.displayName || auth.user?.username
+        }}。从这里开始今天的社区关怀。
+      </p>
     </div>
     <div class="welcome-art" aria-hidden="true">
       <span>关</span><span>怀</span><i />
@@ -67,9 +72,15 @@ onMounted(load);
       :src="`/api/v1/communities/${community.id}/icon?v=${community.version}`"
       alt="社区图标"
     />
-    <div>
+    <div :class="{ 'intro-expanded': expandedIntro }">
       <h2>{{ community.name }}</h2>
       <p>{{ community.description || "欢迎使用本社区老年服务工作台。" }}</p>
+      <el-button
+        class="intro-toggle"
+        text
+        @click="expandedIntro = !expandedIntro"
+        >{{ expandedIntro ? "收起社区介绍" : "展开社区介绍" }}</el-button
+      >
     </div>
   </section>
   <el-alert
@@ -201,7 +212,7 @@ onMounted(load);
           <span>01</span>
           <div>
             <strong>保护个人信息</strong>
-            <p>不录入身份证、手机号码和详细家庭地址。</p>
+            <p>姓名、电话和住址填写在加密档案中；身份证号禁止保存。</p>
           </div>
         </li>
         <li>

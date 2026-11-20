@@ -1,151 +1,82 @@
 # 社区老年服务系统
 
-面向社区工作人员的老年服务管理系统，已实现登录与权限、老人档案、接种核验、通知触达、跟进任务、附件、统计报表、用户及规则管理，以及政策知识库、AI结构化解析和带原文引用的RAG问答。政策问答的配置、演示与使用见[政策问答启动说明](政策问答启动说明.md)。
+**当前项目最新版本：v1.5.0｜更新日期：2026年11月20日**
 
-当前架构：**Vue 前端 → Spring Boot 服务 → MySQL + 本地Lucene向量索引 → 配置的模型API**。后端按领域分包，统一打包；启动不需要 Nacos、Redis 或独立向量数据库进程。
+面向社区工作人员的养老服务管理系统，支持老人档案、通知触达、服务跟进、统计报表、多社区权限、操作日志，以及带政策原文引用的AI问答。
 
-**1.3.0新增六位初始密码、自助改密、强度显示及HTTPS默认启动，见[密码与安全检查说明](密码与安全检查说明.md)。本次无需新增SQL。**
+## 团队统一更新入口
 
-**1.2.0已支持多社区授权和全社区统计。已有数据库必须先执行增量升级，见[多社区权限升级说明](多社区权限升级说明.md)，不要重新导入初始化数据库。**
+直接按 **[11.20启动更新](11.20启动更新.md)** 操作：构建新版 → 清空导入 → 启动网站，当前最新版本为 **v1.5.0**。
 
-## 技术栈
+日常使用只需启动，不要重复清空。证书、缺表、备份恢复等问题再看[详细说明](最新版更新、清理与启动说明.md)。
 
-| 部分 | 技术 |
-| --- | --- |
-| 后端 | Java 21、Spring Boot 4.1.1、Spring Security、Spring JDBC、Maven |
-| 前端 | Vue 3、TypeScript、Vite、Pinia、Vue Router、Element Plus、Axios |
-| 数据库 | MySQL 8.0.16 及以上，31 张业务表、6张AI表、4张多社区相关表；Lucene 9.12.2 |
-| 接口与导出 | OpenAPI / Swagger UI、Apache POI（Excel、Word） |
+完整发布版本以维护者通知的分支/提交及项目版本文件为准。当前开发分支是 `codex/policy-qa`，PR合并前main可能落后；拉取后核对 `backend/pom.xml` 和 `frontend/package.json` 均为1.5.0，并确认包含初始数据包与政策目录。
 
-## 队友首次运行（Windows / PowerShell）
+## 已安装后的日常启动
 
-先安装并配置好 Git、JDK 21、Maven 3.9、Node.js 22.12 或以上、MySQL 8。`git`、`java`、`mvn`、`node`、`npm.cmd` 应可在终端执行。MySQL 使用本机 `3306` 端口，下面的服务命令按服务名 `MySQL80` 编写；若安装时使用其他名称，需同步调整启动脚本中的服务名。
-
-### 1. 克隆仓库
-
-```powershell
-git clone https://github.com/YiWenZhang/community_serviece.git
-cd community_serviece
-```
-
-之后的相对路径均以克隆后的仓库根目录为准，不要求放到作者电脑的 `D:\Desktop\CummityService`。
-
-### 2. 启动 MySQL 并首次导入
-
-在管理员 PowerShell 中启动 MySQL，已运行可跳过：
-
-```powershell
-Start-Service MySQL80
-```
-
-回到仓库根目录，指定自己电脑上实际的 `mysql.exe` 路径：
-
-```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\database\本机导入.ps1 -MySqlExe "C:\Program Files\MySQL\MySQL Server 8.0\bin\mysql.exe"
-```
-
-按提示输入现有 MySQL `root` 密码，等待显示 `导入成功：community_elder_service`。使用其他已有建库账号时，可追加 `-MySqlUser 你的账号`。
-
-脚本读取 `database/导入数据库.sql`，创建数据库、31 张业务表及少量虚构示例数据，**不需要提前手动创建数据库**。每台电脑只首次导入一次；数据库已存在或导入报错时，先检查原因，不要删除数据库或忽略错误重导。1.1.0后端首次启动会增量创建AI表；不会重建现有业务表。
-
-### 3. 构建后端并安装前端依赖
-
-在仓库根目录执行，任一步失败请先解决错误：
-
-```powershell
-Push-Location backend
-mvn clean package
-Pop-Location
-
-Push-Location frontend
-npm.cmd ci
-Pop-Location
-```
-
-仓库不提交 JAR、`target`、`node_modules` 和 `dist`；每位开发者在本机生成。
-
-### 4. 启动整个网站
-
-在仓库根目录执行：
+在自己的项目根目录执行：
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\启动网站.ps1
 ```
 
-脚本打开两个窗口，保留它们：
+脚本默认使用HTTPS。后端窗口输入现有MySQL密码，等待前后端启动完成，访问 **https://127.0.0.1:5443**。首次证书信任、端口占用和后台进程处理见统一总说明。已在运行时不用再启动一次。
 
-1. 后端窗口只输入 **MySQL 密码**。应用初始密码统一为 **123456**（弱），已有账号保留原密码。首次生成本机HTTPS证书，需按[安全说明](密码与安全检查说明.md)核验并手动信任CA。
-2. 前端窗口等待显示 `Local`；后端窗口显示 `Started CommunityApplication` 后访问网站。
+普通启动不会清空数据。`重建四社区数据.ps1`会替换全部旧业务资料，不能作为每天启动网站的步骤。
 
-| 用途 | 地址 |
+## v1.5.0提供的功能与资料
+
+| 部分 | 当前内容 |
 | --- | --- |
-| 网站 | https://127.0.0.1:5443 |
-| 后端健康检查 | https://127.0.0.1:8443/actuator/health |
-| Swagger UI | https://127.0.0.1:8443/swagger-ui.html |
+| 四社区资料 | 智园、慧园、卓园、越园；完整介绍、图标、网格及服务安排 |
+| 初始人员 | 1名管理员、1名统计员、5名网格员；涵盖单社区与跨社区分工 |
+| 老人及业务 | 每社区5名老人，共20名；通知、接种核验、跟进及反馈资料 |
+| 政策知识库 | 11份源文件，分社区形成32份已入库政策；支持管理员后续上传与AI解析 |
+| 政策问答 | 多轮RAG、原文引用、无依据提示、可配置模型及接口格式 |
+| 权限与日志 | 管理员全社区管理；网格员仅本人负责范围；统计员只读报表；操作可追溯 |
+| 密码与安全 | 初始/重置密码123456、自助改密与强度显示、BCrypt、编号及姓名/电话/住址/家属信息AES-GCM、HTTPS |
 
-管理员账号为 `admin_demo`，初始密码为123456（已有账号使用原密码）。进入“用户管理”，启用 `grid_demo`、`stats_demo` ，保留原角色；示例账号初始化密码为123456，旧账号可点击重置按钮。使用 `grid_demo` 体验示例老人档案、通知及跟进；`stats_demo` 查看统计和导出报表。管理员可管理全部社区的老人和业务，网格员仅操作已分配社区内本人负责的记录。
+安装四社区包后的账号：`admin`（周明远）、`stats`（许文静）、`grid1`～`grid5`，初始密码均为123456。保留数据升级的环境继续使用原账号和已修改密码；权限分配见统一总说明。
 
-MySQL 账号与应用账号相互独立；DBeaver 连接 `127.0.0.1:3306`、库名 `community_elder_service`，使用 MySQL 账号和密码。开发时前端通过 Vite 代理访问后端，接口前缀为 `/api/v1`。
+工作人员和老人资料为合成数据；公开政策采用官方全文，内部规范明确标注编制性质。老人姓名、本人电话、家庭住址及家属姓名、关系、电话通过专用字段以AES-256-GCM加密保存，授权人员正常查看和编辑。禁止录入、保存身份证号。初始包使用梁山人物姓名和虚构联系方式，不能拨打或当作真实居民资料。
 
-停止前后端：在对应窗口按 `Ctrl+C`；MySQL 可以继续运行。以后启动无需重复导入；修改 Java 后先重新构建并重启后端，修改 Vue 源码时 Vite 自动更新页面。
+## 技术与目录
 
-### 本机HTTP调试（仅虚构数据）
-
-下列单独启动方式为HTTP，不满足HTTPS要求，真实部署使用上方默认HTTPS入口。
-
-在仓库根目录打开两个 PowerShell 终端：
-
-```powershell
-# 终端一：后端；自定义数据库账号可追加 -DbUser 你的账号
-powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\start-local.ps1
-```
-
-```powershell
-# 终端二：前端
-cd frontend
-npm.cmd run dev
-```
-
-## 先看哪些文档
-
-| 文档 | 内容 |
-| --- | --- |
-| [快速启动](快速启动.md) | 作者现有电脑的启动命令、常见问题；新克隆环境优先按本 README 操作 |
-| [系统设计文档](社区老年服务系统设计文档_v1.0_20261016.md) | 业务设计、数据库设计与服务划分 |
-| [原始项目文档](1.%20社区老年服务系统.docx) | 项目需求参考 |
-| [数据库使用说明](database/数据库使用说明.md) | 初始化、DBeaver、表与示例数据说明 |
-| [后端说明](backend/README.md) | 模块、配置、权限、业务规则、测试及部署 |
-| [API 接口文档](backend/docs/API接口文档.md) | 请求参数、返回值、权限及错误处理 |
-| [OpenAPI JSON](backend/docs/openapi.json) | 可导入接口调试工具的规范文件 |
-| [前端说明](frontend/README.md) | 页面、接口代理与构建说明 |
-| [协作约定](CONTRIBUTING.md) | 分支、提交、数据库变更与验证流程 |
-
-## 目录
+Vue 3 + TypeScript + Vite前端，Java 21目标的Spring Boot后端，MySQL 8及本地Lucene索引。完整数据库41张表；无需额外启动Nacos、Redis或独立向量数据库服务。
 
 ```text
-backend/          Spring Boot 业务服务、测试与接口文档
-frontend/         Vue 前端源码及依赖锁文件
-database/         首次初始化 SQL、验证 SQL 与导入脚本
-.github/          自动构建检查与 PR 模板
-启动网站.ps1      Windows 本地启动入口
-快速启动.md       本机启动说明
-CONTRIBUTING.md   团队协作约定
+backend/                 后端源码、测试、配置示例及接口文档
+frontend/                Vue前端源码与依赖锁文件
+database/                首次建表、增量迁移、重建工具与初始数据包
+初始政策文档/            本版初始公开政策与社区内部规范
+启动网站.ps1             默认HTTPS本机启动入口
+最新版更新、清理与启动说明.md  团队统一更新与运行总说明
 ```
 
-## 协作与验证
+本机常用地址：网站5443、后端8443、MySQL3306。后端健康检查为 `https://127.0.0.1:8443/actuator/health`，本机Swagger为 `https://127.0.0.1:8443/swagger-ui.html`；production配置关闭公开接口文档。
 
-从 `main` 拉取最新代码，为每项任务新建 `feat/功能名`、`fix/问题名` 或 `docs/主题` 分支，通过 Pull Request 合并。提交前运行：
+## 专项文档
 
-```powershell
-Push-Location backend
-mvn test
-Pop-Location
+| 文档 | 用途 |
+| --- | --- |
+| [11.20启动更新](11.20启动更新.md) | 简单更新入口：构建、清空导入、启动 |
+| [最新版更新、清理与启动说明](最新版更新、清理与启动说明.md) | 证书、迁移、备份与恢复等详细操作 |
+| [快速启动](快速启动.md) | 常用启动命令与总说明导航 |
+| [四社区初始数据导入说明](四社区初始数据导入说明.md) | 账号分工、数据设计、政策来源与重建细节 |
+| [密码与安全检查说明](密码与安全检查说明.md) | 加密、改密、证书及生产部署边界 |
+| [多社区权限升级说明](多社区权限升级说明.md) | V002迁移与权限规则 |
+| [政策问答启动说明](政策问答启动说明.md) | 模型配置、上传解析和RAG使用 |
+| [数据库使用说明](database/数据库使用说明.md) | 基础结构及数据库工具说明 |
+| [后端说明](backend/README.md)、[前端说明](frontend/README.md) | 技术模块与测试方式 |
+| [API接口文档](backend/docs/API接口文档.md)、[OpenAPI](backend/docs/openapi.json) | 接口契约 |
+| [协作约定](CONTRIBUTING.md) | 团队提交与数据库变更约定 |
 
-Push-Location frontend
-npm.cmd run build
-Pop-Location
-```
+旧文档中的早期账号、端口和样例数量属于对应版本的历史说明，当前操作以v1.5.0总说明为准。
 
-GitHub Actions 同样执行后端测试与打包、前端依赖安装与构建。默认后端测试不连接数据库；真实 MySQL 集成测试需要独立测试库，具体见后端说明。自动构建不会启动完整网站，也不代表业务联调已完成。
+## 配置与协作
 
-密码、运行日志、上传文件、本机数据库和本地配置均不提交。`database/演示数据密钥.json` 专用于 SQL 中三条虚构编号的解密，是公开的开发样例，便于队友开箱验证；不要用于真实数据或生产环境。生产配置使用环境变量或密钥系统，参考后端配置说明。
+JAR、target、node_modules和dist由每台电脑自行构建，不随仓库分发。密码、真实模型密钥、私钥、上传资料、数据库备份及运行目录不提交Git；新电脑需自行配置可用模型密钥。
+
+公开的 `database/演示数据密钥.json`用于合成初始资料，不能作为生产密钥。真实部署使用受控密钥和CA签发证书，并保持数据库、运行文件与密钥配套。
+
+提交前按变更范围运行后端测试和前端构建；MySQL集成测试只指向独立测试库。GitHub Actions检查后端打包和前端构建，不代替数据库升级及实际业务验证。

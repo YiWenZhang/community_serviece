@@ -1,6 +1,6 @@
 # 社区老年服务业务微服务接口文档
 
-版本1.3.0，基于实际运行服务导出的OpenAPI生成。含多社区、AI政策问答及密码安全接口。
+版本1.5.0，基于实际运行服务导出的OpenAPI生成。含多社区、AI政策问答及密码安全接口。
 安全与启动详见[密码与安全检查说明](../../密码与安全检查说明.md)，权限范围详见[多社区权限接口](多社区权限接口.md)。
 
 ## 一 调用约定
@@ -467,6 +467,8 @@
 | birthMonth | query | 否 | integer (int32) | — |
 | vaccinationStatus | query | 否 | string | — |
 | needId | query | 否 | integer (int64) | — |
+| name | query | 否 | string | — |
+| phone | query | 否 | string | — |
 
 响应为data及traceId；创建返回内部id，修改通常返回id及新version，列表和详情按当前用户范围过滤。字段含义与业务示例见后文。
 
@@ -1016,7 +1018,7 @@ multipart字段`file`和`redactionConfirmed=true`，仅有效JPEG或PNG，最多
 | vaccineId | integer (int64) | 是 | — |
 | cycleKey | string | 是 | minLength=0; maxLength=32 |
 | doseStage | string | 是 | minLength=0; maxLength=32 |
-| name | string | 是 | minLength=0; maxLength=100 |
+| name | string | 是 | 老人姓名（personalInfo内）；列表查询时为姓名精确匹配；minLength=0; maxLength=100 |
 | startDate | string (date) | 是 | — |
 | endDate | string (date) | 是 | — |
 | eligibilityRuleRef | string | 否 | minLength=0; maxLength=200 |
@@ -1039,7 +1041,7 @@ multipart字段`file`和`redactionConfirmed=true`，仅有效JPEG或PNG，最多
 | 字段 | 类型 | 必填 | 规则与说明 |
 | --- | --- | --- | --- |
 | code | string | 是 | pattern=[A-Z0-9_-]{1,32}; minLength=1 |
-| name | string | 是 | minLength=0; maxLength=80 |
+| name | string | 是 | 老人姓名（personalInfo内）；列表查询时为姓名精确匹配；minLength=0; maxLength=80 |
 | description | string | 否 | minLength=0; maxLength=2000 |
 | status | string | 是 | pattern=ACTIVE或INACTIVE; minLength=1 |
 | version | integer (int32) | 否 | 当前资源版本；先GET最新值，旧版本409；保持JSON整数；minimum=0 |
@@ -1059,9 +1061,10 @@ multipart字段`file`和`redactionConfirmed=true`，仅有效JPEG或PNG，最多
 | gridId | integer (int64) | 是 | 本社区有效网格ID；— |
 | sex | string | 是 | pattern=MALE或FEMALE或UNKNOWN |
 | birthMonth | string | 是 | 出生年月YYYY-MM，不包含出生日期；不得为未来月份；pattern=\d{4}-(0[1-9]或1[0-2]) |
-| remark | string | 否 | 脱敏业务备注，不保存身份证、手机号、家庭地址；minLength=0; maxLength=500 |
+| remark | string | 否 | 业务备注；联系方式填写到专用加密字段，不在此明文保存；minLength=0; maxLength=500 |
 | needIds | array<integer (int64)> | 是 | 有效服务需求ID数组；无需求时传[]；元素去重 |
 | ownerUserId | integer (int64) | 否 | 本社区有效网格员ID；— |
+| personalInfo | Info | 是 | 必填加密资料对象：姓名必填；本人电话、住址、家属姓名、关系和电话可选；禁止身份证号；— |
 
 ### Export
 
@@ -1086,6 +1089,17 @@ multipart字段`file`和`redactionConfirmed=true`，仅有效JPEG或PNG，最多
 | ruleId | integer (int64) | 是 | 本社区已启用通知规则ID；— |
 | period | string | 是 | 自动生成目标月份YYYY-MM；pattern=\d{4}-(0[1-9]或1[0-2]) |
 
+### Info
+
+| 字段 | 类型 | 必填 | 规则与说明 |
+| --- | --- | --- | --- |
+| name | string | 是 | 老人姓名（personalInfo内）；列表查询时为姓名精确匹配；minLength=0; maxLength=40 |
+| phone | string | 否 | 老人本人手机号或带区号固话，支持+86；列表查询时为规范化后的精确匹配；minLength=0; maxLength=24 |
+| address | string | 否 | 家庭住址，专用加密字段，最长200字符；minLength=0; maxLength=200 |
+| familyName | string | 否 | 家属姓名或称呼，专用加密字段；minLength=0; maxLength=40 |
+| familyRelation | string | 否 | 家属关系，例如女儿；minLength=0; maxLength=24 |
+| familyPhone | string | 否 | 家属电话，专用加密字段；minLength=0; maxLength=24 |
+
 ### Login
 
 | 字段 | 类型 | 必填 | 规则与说明 |
@@ -1098,7 +1112,7 @@ multipart字段`file`和`redactionConfirmed=true`，仅有效JPEG或PNG，最多
 | 字段 | 类型 | 必填 | 规则与说明 |
 | --- | --- | --- | --- |
 | code | string | 是 | pattern=[A-Z0-9_-]{1,32}; minLength=1 |
-| name | string | 是 | minLength=0; maxLength=64 |
+| name | string | 是 | 老人姓名（personalInfo内）；列表查询时为姓名精确匹配；minLength=0; maxLength=64 |
 
 ### NewTask
 
@@ -1180,7 +1194,7 @@ multipart字段`file`和`redactionConfirmed=true`，仅有效JPEG或PNG，最多
 | --- | --- | --- | --- |
 | version | integer (int32) | 否 | 当前资源版本；先GET最新值，旧版本409；保持JSON整数；minimum=0 |
 | code | string | 是 | pattern=[A-Z0-9_]{1,32}; minLength=1 |
-| name | string | 是 | minLength=0; maxLength=80 |
+| name | string | 是 | 老人姓名（personalInfo内）；列表查询时为姓名精确匹配；minLength=0; maxLength=80 |
 | noticeType | string | 是 | 可选VACCINE、BIRTHDAY、LECTURE、OTHER；pattern=BIRTHDAY或VACCINE |
 | leadDays | integer (int32) | 否 | 提前准备天数，0至30；生日规则用于选择目标月份；minimum=0; maximum=30 |
 | campaignId | integer (int64) | 否 | 具体年度与阶段的疫苗服务周期；疫苗通知和规则必填；— |
@@ -1274,7 +1288,7 @@ POST /elders：
 }
 ```
 
-响应示例为`{"data":{"id":"4","elderNo":"SH-L-2026-004","version":0},"traceId":"..."}`，编号按实际序列分配，不包含老人姓名、身份证、手机号或地址。
+响应示例为`{"data":{"id":"4","elderNo":"SH-L-2026-004","version":0},"traceId":"..."}`，编号按实际序列分配；详情和列表向授权人员返回name、phone、address、familyName、familyRelation、familyPhone，不返回任何密文或HMAC。姓名和联系资料仅在personalInfo专用字段提交后加密保存；禁止身份证号。
 
 PATCH /elders/{id}采用`{"version":0,"profile":{...ElderDraft字段...},"status":"ACTIVE"}`，属于明确的整份业务资料替换，不是任意字段穿透修改。
 

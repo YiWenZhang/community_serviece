@@ -140,7 +140,7 @@ onMounted(async () => {
     >
   </div>
   <el-alert
-    title="新账号初始密码统一为123456（弱）。示例网格员、统计员需管理员启用；旧账号保留原密码，可单独重置。"
+    title="新账号初始密码统一为123456（弱）。工作人员按姓名和账号管理，网格员可分配一个或多个社区。"
     type="info"
     :closable="false"
     show-icon
