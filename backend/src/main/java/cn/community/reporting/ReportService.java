@@ -22,7 +22,13 @@ public class ReportService {
       Long ownerId,
       @Pattern(regexp = "VACCINE|BIRTHDAY|LECTURE|OTHER") String noticeType,
       Long campaignId,
-      Long communityId) {
+      Long communityId,
+      LocalDate startDate,
+      LocalDate endDate) {
+    public Query(String month, Long ownerId, String noticeType, Long campaignId, Long communityId) {
+      this(month, ownerId, noticeType, campaignId, communityId, null, null);
+    }
+
     public Query(String month, Long ownerId, String noticeType, Long campaignId) {
       this(month, ownerId, noticeType, campaignId, null);
     }
@@ -88,17 +94,14 @@ public class ReportService {
     Problem.require(
         a.globalReports() || q.communityId() == null || q.communityId() == a.communityId(),
         "只能统计当前授权社区内本人负责的数据");
-    YearMonth month = YearMonth.parse(q.month());
+    var period = period(q);
     LocalDateTime start =
-        month
-            .atDay(1)
+        period[0]
             .atStartOfDay(ZoneId.of("Asia/Shanghai"))
             .withZoneSameInstant(ZoneOffset.UTC)
             .toLocalDateTime();
     LocalDateTime end =
-        month
-            .plusMonths(1)
-            .atDay(1)
+        period[1]
             .atStartOfDay(ZoneId.of("Asia/Shanghai"))
             .withZoneSameInstant(ZoneOffset.UTC)
             .toLocalDateTime();
@@ -159,6 +162,38 @@ public class ReportService {
     metrics.add(
         metric("SATISFACTION", Db.id(feedback, "satisfied"), Db.id(feedback, "total"), "ALL"));
     metrics.add(metric("FEEDBACK_RATE", Db.id(feedback, "total"), total, "ALL"));
+    var gaps = new ArrayList<Map<String, Object>>();
+    var receiptCounts =
+        db.list(
+            "SELECT receipt,COUNT(*) AS amount FROM ("
+                + facts
+                + ") x WHERE workflow<>'CANCELLED' GROUP BY receipt",
+            p);
+    for (var count : receiptCounts) {
+      String status = count.get("receipt").toString();
+      long amount = Db.id(count, "amount");
+      metrics.add(metric("NOTICE_STATUS_COUNT", amount, total, status));
+      if (Set.of("PENDING", "UNREACHABLE", "REFUSED").contains(status))
+        gaps.add(
+            Db.p(
+                "title",
+                switch (status) {
+                  case "PENDING" -> "待联系通知";
+                  case "UNREACHABLE" -> "未联系上";
+                  default -> "拒绝接收";
+                },
+                "count",
+                amount,
+                "analysis",
+                switch (status) {
+                  case "PENDING" -> "通知已生成，尚无确认接收记录。";
+                  case "UNREACHABLE" -> "最新联系结果为未联系上，应查看上门无人、电话无人接或其他原因。";
+                  default -> "已客观记录拒绝接收，尊重本人意愿。";
+                },
+                "suggestion",
+                status.equals("REFUSED") ? "核对已记录的反馈原话；不强制重复联系。" : "按负责人落实联系或再次上门，在服务跟进中登记结果。"));
+    }
+    var vaccineSummary = new ArrayList<Map<String, Object>>();
     var channels =
         db.list(
             "SELECT d.channel,COUNT(*) AS attempts FROM delivery_attempt d JOIN notice_recipient r"
@@ -200,17 +235,68 @@ public class ReportService {
           db.list(
               "SELECT campaign_id,COALESCE(SUM(eligibility_snapshot='ELIGIBLE'),0) AS"
                   + " eligible,COALESCE(SUM(eligibility_snapshot='ELIGIBLE' AND"
-                  + " resulting_status='COMPLETED'),0) AS completed FROM ("
+                  + " resulting_status='COMPLETED'),0) AS completed,COUNT(*) AS total,"
+                  + " COALESCE(SUM(resulting_status='NOT_VACCINATED'),0) AS not_vaccinated,"
+                  + " COALESCE(SUM(resulting_status='PARTIAL'),0) AS partial,"
+                  + " COALESCE(SUM(resulting_status='COMPLETED'),0) AS all_completed,"
+                  + " COALESCE(SUM(resulting_status='UNKNOWN'),0) AS unknown_status,"
+                  + " COALESCE(SUM(eligibility_snapshot='UNKNOWN'),0) AS unknown_eligibility FROM ("
                   + vaccinated
                   + ") v GROUP BY campaign_id ORDER BY campaign_id",
               p);
-      for (var v : vaccine)
+      for (var v : vaccine) {
+        String dimension = "CAMPAIGN:" + v.get("campaign_id");
+        String campaignName =
+            db.one(
+                    "SELECT name FROM vaccine_campaign WHERE id=:id",
+                    Db.p("id", v.get("campaign_id")))
+                .get("name")
+                .toString();
+        var summary = new LinkedHashMap<>(v);
+        summary.put("campaignName", campaignName);
+        vaccineSummary.add(summary);
+        String[] states = {"NOT_VACCINATED", "PARTIAL", "COMPLETED", "UNKNOWN"},
+            columns = {"not_vaccinated", "partial", "all_completed", "unknown_status"};
+        for (int i = 0; i < states.length; i++)
+          metrics.add(
+              metric(
+                  "VACCINE_STATUS_COUNT",
+                  Db.id(v, columns[i]),
+                  Db.id(v, "total"),
+                  dimension + ":STATUS:" + states[i]));
+        metrics.add(
+            metric(
+                "ELIGIBILITY_UNKNOWN",
+                Db.id(v, "unknown_eligibility"),
+                Db.id(v, "total"),
+                dimension));
+        long missing = Db.id(v, "eligible") - Db.id(v, "completed");
+        if (missing > 0 || Db.id(v, "unknown_eligibility") > 0)
+          gaps.add(
+              Db.p(
+                  "title",
+                  campaignName + "接种服务缺口",
+                  "count",
+                  missing,
+                  "analysis",
+                  "符合条件尚未完成接种 "
+                      + missing
+                      + " 人；全部记录中未接种 "
+                      + Db.id(v, "not_vaccinated")
+                      + " 人、部分完成 "
+                      + Db.id(v, "partial")
+                      + " 人、资格待核实 "
+                      + Db.id(v, "unknown_eligibility")
+                      + " 人。以上为登记状态，不能据此推断医学原因。",
+                  "suggestion",
+                  "先核实资格和接种事实，查看未联系、拒绝及预约情况；由负责网格员提供自愿预约协助，并按预约日期提前3天提醒。"));
         metrics.add(
             metric(
                 "VACCINATION_RATE",
                 Db.id(v, "completed"),
                 Db.id(v, "eligible"),
                 "CAMPAIGN:" + v.get("campaign_id")));
+      }
     }
     var task =
         db.one(
@@ -237,8 +323,16 @@ public class ReportService {
         q.noticeType(),
         "campaignId",
         q.campaignId(),
+        "startDate",
+        period[0].toString(),
+        "endDate",
+        period[1].minusDays(1).toString(),
+        "vaccineSummary",
+        vaccineSummary,
+        "serviceGaps",
+        gaps,
         "metricVersion",
-        "v1",
+        "v2",
         "snapshotAt",
         snapshot.toInstant(ZoneOffset.UTC).toString(),
         "cutoffAt",
@@ -265,7 +359,7 @@ public class ReportService {
       return Db.p(
           "reportJobId", old.get("reportId"), "jobId", existing.get().get("id"), "replayed", true);
     }
-    YearMonth month = YearMonth.parse(b.query().month());
+    var period = period(b.query());
     long report =
         db.insert(
             "report_job",
@@ -275,15 +369,15 @@ public class ReportService {
                 "report_type",
                 "MONTHLY_SERVICE",
                 "period_start",
-                month.atDay(1),
+                period[0],
                 "period_end_exclusive",
-                month.plusMonths(1).atDay(1),
+                period[1],
                 "scope_owner_id",
                 owner,
                 "filter_json",
                 json.write(b.query()),
                 "metric_version",
-                "v1",
+                "v2",
                 "snapshot_at",
                 LocalDateTime.now(ZoneOffset.UTC),
                 "requested_by",
@@ -321,7 +415,13 @@ public class ReportService {
             number(filter.get("ownerId")),
             (String) filter.get("noticeType"),
             number(filter.get("campaignId")),
-            number(filter.get("communityId")));
+            number(filter.get("communityId")),
+            filter.get("startDate") == null
+                ? null
+                : LocalDate.parse(filter.get("startDate").toString()),
+            filter.get("endDate") == null
+                ? null
+                : LocalDate.parse(filter.get("endDate").toString()));
     Long scope = owner(a, q, true);
     LocalDateTime snapshot = LocalDateTime.now(ZoneOffset.UTC);
     var data = calculate(a, q, scope, snapshot);
@@ -358,7 +458,10 @@ public class ReportService {
               a.id()));
     boolean excel = "XLSX".equals(report.get("format"));
     var bytes = new ByteArrayOutputStream();
-    String[] headers = {"指标", "维度", "分子", "分母", "比例", "说明"};
+    String[] headers = {"指标", "维度", "分子/人数", "分母", "比例", "说明"};
+    @SuppressWarnings("unchecked")
+    var gaps = (List<Map<String, Object>>) data.get("serviceGaps");
+    String range = data.get("startDate") + "至" + data.get("endDate");
     if (excel) {
       try (var workbook = new XSSFWorkbook()) {
         var sheet = workbook.createSheet("养老服务月报");
@@ -366,11 +469,7 @@ public class ReportService {
         title
             .createCell(0)
             .setCellValue(
-                q.month()
-                    + " "
-                    + data.get("scopeLabel")
-                    + " 养老服务月报 v1 快照 "
-                    + data.get("snapshotAt"));
+                range + " " + data.get("scopeLabel") + " 养老服务报表 v2 快照 " + data.get("snapshotAt"));
         var header = sheet.createRow(1);
         for (int c = 0; c < headers.length; c++) header.createCell(c).setCellValue(headers[c]);
         int i = 2;
@@ -380,20 +479,45 @@ public class ReportService {
           for (int c = 0; c < vals.length; c++) row.createCell(c).setCellValue(vals[c]);
         }
         for (int c = 0; c < headers.length; c++) sheet.setColumnWidth(c, c < 2 ? 7000 : 4500);
+        var gapSheet = workbook.createSheet("服务缺口分析");
+        String[] gapHeaders = {"服务事项", "缺口数量", "登记情况分析", "后续措施"};
+        var gh = gapSheet.createRow(0);
+        for (int c = 0; c < 4; c++) gh.createCell(c).setCellValue(gapHeaders[c]);
+        int gi = 1;
+        for (var gap : gaps) {
+          var gr = gapSheet.createRow(gi++);
+          String[] keys = {"title", "count", "analysis", "suggestion"};
+          for (int c = 0; c < 4; c++)
+            gr.createCell(c).setCellValue(Objects.toString(gap.get(keys[c]), ""));
+        }
+        for (int c = 0; c < 4; c++) gapSheet.setColumnWidth(c, c < 2 ? 6000 : 16000);
+        if (gaps.isEmpty())
+          gapSheet.createRow(1).createCell(0).setCellValue("本期已登记资料暂无待办缺口；请继续核实资料完整性。");
         workbook.write(bytes);
       }
     } else {
       try (var doc = new XWPFDocument()) {
-        doc.createParagraph()
-            .createRun()
-            .setText(q.month() + " " + data.get("scopeLabel") + " 养老服务月报");
-        doc.createParagraph().createRun().setText("口径 v1 快照 " + data.get("snapshotAt") + " 仅汇总数据");
+        doc.createParagraph().createRun().setText(range + " " + data.get("scopeLabel") + " 养老服务报表");
+        doc.createParagraph().createRun().setText("口径 v2 快照 " + data.get("snapshotAt") + " 仅汇总数据");
         var table = doc.createTable(rows.size() + 1, headers.length);
         for (int c = 0; c < headers.length; c++) table.getRow(0).getCell(c).setText(headers[c]);
         for (int r = 0; r < rows.size(); r++) {
           String[] vals = values(rows.get(r));
           for (int c = 0; c < vals.length; c++) table.getRow(r + 1).getCell(c).setText(vals[c]);
         }
+        doc.createParagraph().createRun().setText("服务缺口分析（基于已登记数据）");
+        for (var gap : gaps)
+          doc.createParagraph()
+              .createRun()
+              .setText(
+                  gap.get("title")
+                      + "："
+                      + gap.get("count")
+                      + "。"
+                      + gap.get("analysis")
+                      + " 建议："
+                      + gap.get("suggestion"));
+        if (gaps.isEmpty()) doc.createParagraph().createRun().setText("本期已登记资料暂无待办缺口；请继续核实资料完整性。");
         doc.write(bytes);
       }
     }
@@ -401,7 +525,7 @@ public class ReportService {
         files.save(
             a,
             "REPORT",
-            "monthly-" + q.month() + (excel ? ".xlsx" : ".docx"),
+            "service-" + data.get("startDate") + "-" + data.get("endDate") + (excel ? ".xlsx" : ".docx"),
             excel
                 ? "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                 : "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
@@ -417,8 +541,8 @@ public class ReportService {
 
   private String[] values(Map<String, Object> row) {
     return new String[] {
-      row.get("code").toString(),
-      row.get("dimension").toString(),
+      metricName(row.get("code").toString()),
+      dimensionName(row.get("dimension").toString()),
       row.get("numerator").toString(),
       row.get("denominator").toString(),
       row.get("value") == null
@@ -429,6 +553,63 @@ public class ReportService {
               + "%",
       row.get("nullReason") == null ? "" : row.get("nullReason").toString()
     };
+  }
+
+  public static LocalDate[] period(Query q) {
+    if (q.startDate() != null || q.endDate() != null) {
+      Problem.require(q.startDate() != null && q.endDate() != null, "开始和结束日期须同时填写");
+      Problem.require(
+          !q.startDate().isAfter(q.endDate())
+              && java.time.temporal.ChronoUnit.DAYS.between(q.startDate(), q.endDate()) <= 3660,
+          "统计日期范围不正确或超过10年");
+      return new LocalDate[] {q.startDate(), q.endDate().plusDays(1)};
+    }
+    YearMonth m = YearMonth.parse(q.month());
+    return new LocalDate[] {m.atDay(1), m.plusMonths(1).atDay(1)};
+  }
+
+  private String metricName(String code) {
+    return switch (code) {
+      case "NOTICE_COVERAGE" -> "通知覆盖率";
+      case "SERVICE_CLOSURE" -> "服务闭环率";
+      case "SATISFACTION" -> "满意度";
+      case "FEEDBACK_RATE" -> "反馈率";
+      case "VACCINATION_RATE" -> "疫苗接种率";
+      case "FOLLOWUP_ON_TIME" -> "跟进按期完成率";
+      case "CHANNEL_USAGE" -> "通知方式使用率";
+      case "NOTICE_STATUS_COUNT" -> "通知接收状态数量";
+      case "VACCINE_STATUS_COUNT" -> "疫苗接种状态人数";
+      case "ELIGIBILITY_UNKNOWN" -> "接种资格待核实人数";
+      default -> code;
+    };
+  }
+
+  private String dimensionName(String dimension) {
+    String value = dimension;
+    if (value.startsWith("CAMPAIGN:")) {
+      String[] parts = value.split(":");
+      value =
+          db.one(
+                      "SELECT name FROM vaccine_campaign WHERE id=:id",
+                      Db.p("id", Long.parseLong(parts[1])))
+                  .get("name")
+                  .toString()
+              + (parts.length > 3 ? " / " + parts[3] : "");
+    }
+    return value
+        .replace("NOT_VACCINATED", "未接种")
+        .replace("COMPLETED", "已完成接种")
+        .replace("PARTIAL", "部分完成")
+        .replace("UNREACHABLE", "未联系上")
+        .replace("CONFIRMED", "已确认接收")
+        .replace("REFUSED", "拒绝接收")
+        .replace("PENDING", "待联系")
+        .replace("UNKNOWN", "待核实")
+        .replace("HOME_VISIT", "上门告知")
+        .replace("FAMILY_RELAY", "家属转告")
+        .replace("BULLETIN", "公告栏张贴")
+        .replace("SMS", "短信通知")
+        .replace("ALL", "全部");
   }
 
   private Long number(Object n) {

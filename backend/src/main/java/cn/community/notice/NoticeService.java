@@ -36,7 +36,33 @@ public class NoticeService {
       @Size(max = 40) String familyNameMasked,
       @Size(max = 32) String familyRelation,
       Boolean relayConfirmed,
-      @NotNull Set<Long> fileIds) {}
+      @NotNull Set<Long> fileIds,
+      @Size(max = 40) String familyName) {
+    public Attempt(
+        int version,
+        String channel,
+        String result,
+        String unreachableReason,
+        String reasonText,
+        String feedbackQuote,
+        String familyNameMasked,
+        String familyRelation,
+        Boolean relayConfirmed,
+        Set<Long> fileIds) {
+      this(
+          version,
+          channel,
+          result,
+          unreachableReason,
+          reasonText,
+          feedbackQuote,
+          familyNameMasked,
+          familyRelation,
+          relayConfirmed,
+          fileIds,
+          null);
+    }
+  }
 
   public record Feedback(
       @Min(0) int revision,
@@ -72,9 +98,12 @@ public class NoticeService {
   public Map<String, Object> recipient(Actor a, long id, boolean lock) {
     return elders.reference(
         db.one(
-            "SELECT r.*,e.elder_no_cipher,e.personal_info_cipher FROM notice_recipient r JOIN"
-                + " elder_profile e ON e.id=r.elder_id WHERE r.id=:id AND r.community_id=:community"
-                + " AND (e.owner_user_id=:actor OR "
+            "SELECT r.*,e.elder_no_cipher,e.personal_info_cipher,n.title AS notice_title,n.content"
+                + " AS notice_content,n.type AS notice_type,n.status AS notice_status,(SELECT"
+                + " display_name FROM sys_user WHERE id=e.owner_user_id) AS owner_name FROM"
+                + " notice_recipient r JOIN elder_profile e ON e.id=r.elder_id JOIN notice n ON"
+                + " n.id=r.notice_id WHERE r.id=:id AND r.community_id=:community AND"
+                + " (e.owner_user_id=:actor OR "
                 + a.admin()
                 + ")"
                 + (lock ? " FOR UPDATE" : ""),
@@ -86,6 +115,14 @@ public class NoticeService {
   }
 
   public Object list(Actor a, int page, int size) {
+    return list(a, page, size, null, null);
+  }
+
+  public Object list(Actor a, int page, int size, String noticeType, String status) {
+    return list(a, page, size, noticeType, status, null);
+  }
+
+  public Object list(Actor a, int page, int size, String noticeType, String status, Long ownerId) {
     a.require("notice:read");
     String where =
         " FROM notice n WHERE n.community_id=:community AND ((n.created_by=:actor OR "
@@ -95,14 +132,125 @@ public class NoticeService {
             + " r.notice_id=n.id AND (e.owner_user_id=:actor OR "
             + a.admin()
             + ")))";
+    var params = a.scope();
+    if (ownerId != null) {
+      where +=
+          " AND EXISTS(SELECT 1 FROM notice_recipient rr JOIN elder_profile ee ON ee.id=rr.elder_id"
+              + " WHERE rr.notice_id=n.id AND ee.owner_user_id=:owner)";
+      params.put("owner", ownerId);
+    }
+    if (noticeType != null) {
+      checkType(noticeType);
+      where += " AND n.type=:type";
+      params.put("type", noticeType);
+    }
+    if (status != null) {
+      Problem.require(
+          Set.of("DRAFT", "ACTIVE", "COMPLETED", "CANCELLED").contains(status), "通知状态无效");
+      where += " AND n.status=:ns";
+      params.put("ns", status);
+    }
+    String scoped =
+        " FROM notice_recipient r2 JOIN elder_profile e2 ON e2.id=r2.elder_id WHERE"
+            + " r2.notice_id=n.id AND (e2.owner_user_id=:actor OR :admin)";
+    if (ownerId != null) scoped += " AND e2.owner_user_id=:owner";
     return db.page(
-        "SELECT n.id,n.notice_no,n.type,n.title,n.status,n.active_at,n.version"
+        "SELECT"
+            + " n.id,n.notice_no,n.type,n.title,n.status,n.active_at,n.version,n.period_key,n.source,(SELECT"
+            + " display_name FROM sys_user WHERE id=n.created_by) AS organizer_name,(SELECT"
+            + " COUNT(*)"
+            + scoped
+            + ") AS contact_total,(SELECT COUNT(*)"
+            + scoped
+            + " AND r2.receipt_status='CONFIRMED') AS contact_confirmed,(SELECT COUNT(*)"
+            + scoped
+            + " AND r2.workflow_status IN ('OPEN','FOLLOWING')) AS contact_open"
             + where
             + " ORDER BY n.id DESC",
         "SELECT COUNT(*)" + where,
-        a.scope(),
+        params,
         page,
         size);
+  }
+
+  private void checkType(String type) {
+    Problem.require(Set.of("BIRTHDAY", "VACCINE", "LECTURE", "OTHER").contains(type), "业务类型无效");
+  }
+
+  public Object work(
+      Actor a, int page, int size, String receipt, String type, String state, Long noticeId) {
+    return work(a, page, size, receipt, type, state, noticeId, null);
+  }
+
+  public Object work(
+      Actor a,
+      int page,
+      int size,
+      String receipt,
+      String type,
+      String state,
+      Long noticeId,
+      Long ownerId) {
+    a.require("notice:read");
+    var p = a.scope();
+    Problem.require(
+        Set.of("ALL", "TODO", "FIRST", "RETRY", "OVERDUE", "CLOSED").contains(state), "工作状态无效");
+    String due =
+        "(SELECT MIN(t.due_at) FROM followup_task t WHERE t.recipient_id=r.id AND t.status IN"
+            + " ('PENDING','PROCESSING'))";
+    String from =
+        " FROM notice_recipient r JOIN elder_profile e ON e.id=r.elder_id JOIN notice n ON"
+            + " n.id=r.notice_id WHERE r.community_id=:community AND (e.owner_user_id=:actor OR"
+            + " :admin)";
+    if (ownerId != null) {
+      from += " AND e.owner_user_id=:owner";
+      p.put("owner", ownerId);
+    }
+    if (type != null) {
+      checkType(type);
+      from += " AND n.type=:type";
+      p.put("type", type);
+    }
+    if (noticeId != null) {
+      from += " AND n.id=:notice";
+      p.put("notice", noticeId);
+    }
+    if (receipt != null) {
+      Problem.require(
+          Set.of("PENDING", "CONFIRMED", "UNREACHABLE", "REFUSED").contains(receipt), "接收状态无效");
+      from += " AND r.receipt_status=:receipt";
+      p.put("receipt", receipt);
+    }
+    if (Set.of("TODO", "FIRST", "RETRY", "OVERDUE").contains(state))
+      from += " AND n.status='ACTIVE' AND r.workflow_status IN ('OPEN','FOLLOWING')";
+    if (state.equals("FIRST"))
+      from += " AND r.receipt_status='PENDING' AND r.last_attempt_at IS NULL";
+    if (state.equals("RETRY")) from += " AND r.receipt_status='UNREACHABLE'";
+    if (state.equals("CLOSED")) from += " AND r.workflow_status IN ('CLOSED','CANCELLED')";
+    if (state.equals("OVERDUE")) from += " AND " + due + "<UTC_TIMESTAMP(3)";
+    String select =
+        "SELECT r.*,e.elder_no_cipher,e.personal_info_cipher,n.title AS notice_title,n.type AS"
+            + " notice_type,n.content AS notice_content,n.status AS notice_status,(SELECT"
+            + " display_name FROM sys_user WHERE id=e.owner_user_id) AS owner_name,"
+            + due
+            + " AS next_due_at,(SELECT t.id FROM followup_task t WHERE t.recipient_id=r.id AND"
+            + " t.status IN ('PENDING','PROCESSING') ORDER BY t.due_at,t.id LIMIT 1) AS"
+            + " next_task_id";
+    var result =
+        db.page(
+            select
+                + from
+                + " ORDER BY"
+                + " IF(next_due_at<UTC_TIMESTAMP(3),0,1),IF(r.receipt_status='UNREACHABLE',0,1),next_due_at"
+                + " IS NULL,next_due_at,r.id DESC",
+            "SELECT COUNT(*)" + from,
+            p,
+            page,
+            size);
+    @SuppressWarnings("unchecked")
+    var rows = (List<Map<String, Object>>) result.get("items");
+    result.put("items", references(rows));
+    return result;
   }
 
   public Object detail(Actor a, long id) {
@@ -123,8 +271,11 @@ public class NoticeService {
         "recipients",
         references(
             db.list(
-                "SELECT r.*,e.elder_no_cipher,e.personal_info_cipher FROM notice_recipient r JOIN"
-                    + " elder_profile e ON e.id=r.elder_id WHERE r.notice_id=:id AND"
+                "SELECT r.*,e.elder_no_cipher,e.personal_info_cipher,n.title AS"
+                    + " notice_title,n.content AS notice_content,n.type AS notice_type,n.status AS"
+                    + " notice_status,(SELECT display_name FROM sys_user WHERE id=e.owner_user_id)"
+                    + " AS owner_name FROM notice_recipient r JOIN elder_profile e ON"
+                    + " e.id=r.elder_id JOIN notice n ON n.id=r.notice_id WHERE r.notice_id=:id AND"
                     + " (e.owner_user_id=:actor OR "
                     + a.admin()
                     + ")",
@@ -351,7 +502,9 @@ public class NoticeService {
                 "feedback_quote",
                 b.feedbackQuote(),
                 "family_name_masked",
-                b.familyNameMasked(),
+                maskFamily(familyName(b)),
+                "family_name_cipher",
+                "FAMILY_RELAY".equals(b.channel()) ? crypto.encrypt(familyName(b)) : null,
                 "family_relation",
                 b.familyRelation(),
                 "relay_confirmed",
@@ -398,6 +551,8 @@ public class NoticeService {
         Db.p("receipt", receipt, "flow", flow, "actor", a.id(), "id", rid));
     event(a, r, "RECEIPT_CHANGED", receipt, flow, aid, b.reasonText(), "attempt-" + key);
     if (flow.equals("CLOSED")) closeTasks(a, rid, "通知对象已终结");
+    else if (b.result().equals("POSTED"))
+      task(a, rid, "RECONTACT", aid, 0, ElderService.utc().plusDays(1));
     else if (receipt.equals("UNREACHABLE")) {
       long retries =
           db.count(
@@ -425,9 +580,12 @@ public class NoticeService {
   private void validateAttempt(Attempt b) {
     privacy.check(b.reasonText());
     privacy.check(b.feedbackQuote());
-    privacy.check(b.familyNameMasked());
+    privacy.checkIdentity(familyName(b));
     privacy.check(b.familyRelation());
-    if (b.channel().equals("SMS")) throw new Problem(501, "备案短信平台尚未接入，不记录虚假发送成功");
+    if (b.channel().equals("SMS")) throw new Problem(501, "短信须通过专用发送入口调用备案平台，不能手工登记发送成功");
+    if (Set.of("CONFIRMED", "REFUSED").contains(b.result()))
+      Problem.require(
+          b.feedbackQuote() != null && !b.feedbackQuote().isBlank(), "确认或拒绝接收时请客观记录本人或家属反馈原话");
     if (b.result().equals("UNREACHABLE")) {
       Problem.require(
           b.unreachableReason() != null
@@ -445,17 +603,42 @@ public class NoticeService {
     else Problem.require(!b.result().equals("POSTED"), "只有公告栏可以记录张贴结果");
     if (b.channel().equals("FAMILY_RELAY")) {
       Problem.require(
-          b.familyNameMasked() != null
-              && !b.familyNameMasked().isBlank()
-              && b.familyRelation() != null
-              && !b.familyRelation().isBlank(),
-          "家属转告需填写脱敏称谓和关系");
+          !familyName(b).isBlank() && b.familyRelation() != null && !b.familyRelation().isBlank(),
+          "家属转告需填写姓名和关系，姓名会加密保存");
       Problem.require(
-          b.familyNameMasked().contains("某") || b.familyNameMasked().contains("*"),
-          "家属称谓须脱敏，例如张某 女儿");
+          familyName(b).length() <= 40
+              && familyName(b).codePoints().noneMatch(Character::isISOControl),
+          "家属姓名格式不正确");
       if (b.result().equals("CONFIRMED"))
         Problem.require(Boolean.TRUE.equals(b.relayConfirmed()), "家属必须明确确认已转告");
     }
+  }
+
+  private String familyName(Attempt b) {
+    return java.text.Normalizer.normalize(
+            Objects.toString(b.familyName() == null ? b.familyNameMasked() : b.familyName(), ""),
+            java.text.Normalizer.Form.NFKC)
+        .strip();
+  }
+
+  private String maskFamily(String name) {
+    return name.isBlank() ? null : name.substring(0, name.offsetByCodePoints(0, 1)) + "某";
+  }
+
+  public Object displayAttempts(List<Map<String, Object>> rows) {
+    return rows.stream()
+        .map(
+            row -> {
+              var copy = new LinkedHashMap<>(row);
+              Object cipher = copy.remove("family_name_cipher");
+              copy.put(
+                  "familyName",
+                  cipher instanceof byte[] bytes
+                      ? crypto.decrypt(bytes)
+                      : Objects.toString(copy.get("family_name_masked"), ""));
+              return copy;
+            })
+        .toList();
   }
 
   public String attemptHash(Attempt b) {
@@ -472,8 +655,8 @@ public class NoticeService {
                 b.reasonText(),
                 "feedbackQuote",
                 b.feedbackQuote(),
-                "familyNameMasked",
-                b.familyNameMasked(),
+                "familyNameHash",
+                HexFormat.of().formatHex(crypto.hash("relay.family:" + familyName(b))),
                 "familyRelation",
                 b.familyRelation(),
                 "relayConfirmed",

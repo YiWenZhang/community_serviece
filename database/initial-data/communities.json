@@ -1,5 +1,5 @@
 {
-  "version": "2026.11-v2",
+  "version": "2026.11-v3",
   "description": "四社区业务初始数据；人员与档案为合成资料，公开政策为来源全文，内部规范为本项目编制。",
   "communities": [
     {
@@ -206,7 +206,8 @@
         "address": "智园社区1号楼1单元101室",
         "familyName": "宋某",
         "familyRelation": "女儿",
-        "familyPhone": "18800000001"
+        "familyPhone": "18800000001",
+        "familySmsAllowed": false
       }
     },
     {
@@ -228,7 +229,8 @@
         "address": "智园社区2号楼2单元102室",
         "familyName": "卢某",
         "familyRelation": "儿子",
-        "familyPhone": "18800000002"
+        "familyPhone": "18800000002",
+        "familySmsAllowed": false
       }
     },
     {
@@ -250,7 +252,8 @@
         "address": "智园社区3号楼1单元103室",
         "familyName": "吴某",
         "familyRelation": "女儿",
-        "familyPhone": "18800000003"
+        "familyPhone": "18800000003",
+        "familySmsAllowed": false
       }
     },
     {
@@ -272,7 +275,8 @@
         "address": "智园社区1号楼2单元104室",
         "familyName": "公某",
         "familyRelation": "儿子",
-        "familyPhone": "18800000004"
+        "familyPhone": "18800000004",
+        "familySmsAllowed": false
       }
     },
     {
@@ -294,7 +298,8 @@
         "address": "智园社区2号楼1单元105室",
         "familyName": "关某",
         "familyRelation": "女儿",
-        "familyPhone": "18800000005"
+        "familyPhone": "18800000005",
+        "familySmsAllowed": false
       }
     },
     {
@@ -316,7 +321,8 @@
         "address": "慧园社区3号楼2单元106室",
         "familyName": "林某",
         "familyRelation": "儿子",
-        "familyPhone": "18800000006"
+        "familyPhone": "18800000006",
+        "familySmsAllowed": false
       }
     },
     {
@@ -338,7 +344,8 @@
         "address": "慧园社区1号楼1单元107室",
         "familyName": "秦某",
         "familyRelation": "女儿",
-        "familyPhone": "18800000007"
+        "familyPhone": "18800000007",
+        "familySmsAllowed": false
       }
     },
     {
@@ -360,7 +367,8 @@
         "address": "慧园社区2号楼2单元108室",
         "familyName": "呼某",
         "familyRelation": "儿子",
-        "familyPhone": "18800000008"
+        "familyPhone": "18800000008",
+        "familySmsAllowed": false
       }
     },
     {
@@ -382,7 +390,8 @@
         "address": "慧园社区3号楼1单元109室",
         "familyName": "花某",
         "familyRelation": "女儿",
-        "familyPhone": "18800000009"
+        "familyPhone": "18800000009",
+        "familySmsAllowed": false
       }
     },
     {
@@ -404,7 +413,8 @@
         "address": "慧园社区1号楼2单元110室",
         "familyName": "柴某",
         "familyRelation": "儿子",
-        "familyPhone": "18800000010"
+        "familyPhone": "18800000010",
+        "familySmsAllowed": false
       }
     },
     {
@@ -426,7 +436,8 @@
         "address": "卓园社区2号楼1单元111室",
         "familyName": "李某",
         "familyRelation": "女儿",
-        "familyPhone": "18800000011"
+        "familyPhone": "18800000011",
+        "familySmsAllowed": false
       }
     },
     {
@@ -448,7 +459,8 @@
         "address": "卓园社区3号楼2单元112室",
         "familyName": "朱某",
         "familyRelation": "儿子",
-        "familyPhone": "18800000012"
+        "familyPhone": "18800000012",
+        "familySmsAllowed": false
       }
     },
     {
@@ -470,7 +482,8 @@
         "address": "卓园社区1号楼1单元113室",
         "familyName": "鲁某",
         "familyRelation": "女儿",
-        "familyPhone": "18800000013"
+        "familyPhone": "18800000013",
+        "familySmsAllowed": false
       }
     },
     {
@@ -492,7 +505,8 @@
         "address": "卓园社区2号楼2单元114室",
         "familyName": "武某",
         "familyRelation": "儿子",
-        "familyPhone": "18800000014"
+        "familyPhone": "18800000014",
+        "familySmsAllowed": false
       }
     },
     {
@@ -514,7 +528,8 @@
         "address": "卓园社区3号楼1单元115室",
         "familyName": "董某",
         "familyRelation": "女儿",
-        "familyPhone": "18800000015"
+        "familyPhone": "18800000015",
+        "familySmsAllowed": false
       }
     },
     {
@@ -536,7 +551,8 @@
         "address": "越园社区1号楼2单元116室",
         "familyName": "张某",
         "familyRelation": "儿子",
-        "familyPhone": "18800000016"
+        "familyPhone": "18800000016",
+        "familySmsAllowed": false
       }
     },
     {
@@ -558,7 +574,8 @@
         "address": "越园社区2号楼1单元117室",
         "familyName": "孙某",
         "familyRelation": "女儿",
-        "familyPhone": "18800000017"
+        "familyPhone": "18800000017",
+        "familySmsAllowed": false
       }
     },
     {
@@ -580,7 +597,8 @@
         "address": "越园社区3号楼2单元118室",
         "familyName": "扈某",
         "familyRelation": "儿子",
-        "familyPhone": "18800000018"
+        "familyPhone": "18800000018",
+        "familySmsAllowed": false
       }
     },
     {
@@ -602,7 +620,8 @@
         "address": "越园社区1号楼1单元119室",
         "familyName": "顾某",
         "familyRelation": "女儿",
-        "familyPhone": "18800000019"
+        "familyPhone": "18800000019",
+        "familySmsAllowed": false
       }
     },
     {
@@ -624,7 +643,8 @@
         "address": "越园社区2号楼2单元120室",
         "familyName": "李某",
         "familyRelation": "儿子",
-        "familyPhone": "18800000020"
+        "familyPhone": "18800000020",
+        "familySmsAllowed": false
       }
     }
   ],
@@ -675,7 +695,7 @@
       "community": null,
       "nature": "INTERNAL",
       "sourceUrl": null,
-      "sha256": "d5b1f9bc7250991594c0fec20eb9ae57a204d7a5467c5fd92b3dd1f32ace46f5"
+      "sha256": "1e0fb2c0a5fc2e2cf4e29e6ab5e9919b130a830006fa7d860e4e3fa7a539c502"
     },
     {
       "path": "初始政策文档/05-四社区探访关爱与异常处置规程.md",

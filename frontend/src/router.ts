@@ -8,6 +8,7 @@ import Followups from "./views/Followups.vue";
 import Reports from "./views/Reports.vue";
 import Users from "./views/Users.vue";
 import Rules from "./views/Rules.vue";
+import SmsSettings from "./views/SmsSettings.vue";
 import PolicyChat from "./views/PolicyChat.vue";
 import Knowledge from "./views/Knowledge.vue";
 import AiModels from "./views/AiModels.vue";
@@ -19,7 +20,7 @@ export const router = createRouter({
   history: createWebHashHistory(),
   routes: [
     { path: "/login", component: Login, meta: { title: "登录" } },
-    { path: "/", component: Home, meta: { title: "服务工作台" } },
+    { path: "/", component: Home, meta: { title: "工作首页" } },
     {
       path: "/account-security",
       component: AccountSecurity,
@@ -62,7 +63,7 @@ export const router = createRouter({
     {
       path: "/notices",
       component: Notices,
-      meta: { title: "通知管理", permission: "notice:read" },
+      meta: { title: "通知与联系", permission: "notice:read" },
     },
     {
       path: "/followups",
@@ -85,7 +86,16 @@ export const router = createRouter({
     {
       path: "/rules",
       component: Rules,
-      meta: { title: "通知规则", permission: "notice:rule:manage" },
+      meta: { title: "自动规则配置", permission: "notice:rule:manage" },
+    },
+    {
+      path: "/sms-settings",
+      component: SmsSettings,
+      meta: {
+        title: "短信平台设置",
+        permission: "system:config:manage",
+        adminOnly: true,
+      },
     },
     { path: "/:pathMatch(.*)*", redirect: "/" },
   ],

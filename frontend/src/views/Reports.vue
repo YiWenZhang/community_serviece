@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, onBeforeUnmount, ref } from "vue";
+import { computed, onMounted, onBeforeUnmount, ref, reactive } from "vue";
 import { ElMessage } from "element-plus";
 import {
   Download,
@@ -35,6 +35,65 @@ const auth = useAuth(),
   error = ref(""),
   exports = ref<Row[]>([]),
   detailsOpen = ref(false);
+const filters = reactive({ ownerId: "", noticeType: "", campaignId: "" }),
+  dateMode = ref("month"),
+  dateRange = ref<string[]>([]),
+  workers = ref<Row[]>([]),
+  campaigns = ref<Row[]>([]);
+function reportQuery() {
+  return {
+    month: month.value,
+    communityId: reportCommunity.value || null,
+    ownerId: filters.ownerId || null,
+    noticeType: filters.noticeType || null,
+    campaignId: filters.campaignId || null,
+    startDate: dateMode.value === "range" ? dateRange.value?.[0] : null,
+    endDate: dateMode.value === "range" ? dateRange.value?.[1] : null,
+  };
+}
+async function loadFilters() {
+  try {
+    const r = await api(
+      "/reports/filters?" + query({ communityId: reportCommunity.value }),
+    );
+    workers.value = r.workers;
+    campaigns.value = r.campaigns;
+  } catch (e) {
+    fail(e);
+  }
+}
+async function communityChanged() {
+  filters.ownerId = "";
+  filters.campaignId = "";
+  await loadFilters();
+}
+function dimensionText(value: string) {
+  const parts = value.split(":");
+  if (parts[0] === "CAMPAIGN") {
+    const c = campaigns.value.find((c) => String(c.id) === parts[1]);
+    return (
+      (c?.name || "周期 " + parts[1]) +
+      (parts[2] === "STATUS" ? " / " + statusText(parts[3]) : "")
+    );
+  }
+  return dimensionNames[value] || statusText(value);
+}
+function statusText(value: string) {
+  return (
+    (
+      {
+        NOT_VACCINATED: "未接种",
+        PARTIAL: "部分完成",
+        COMPLETED: "已完成接种",
+        UNKNOWN: "待核实",
+        PENDING: "待联系",
+        CONFIRMED: "已确认接收",
+        UNREACHABLE: "未联系上",
+        REFUSED: "拒绝接收",
+      } as Row
+    )[value] || value
+  );
+}
 let alive = true;
 const metricNames: Row = {
   NOTICE_COVERAGE: "通知覆盖率",
@@ -44,11 +103,15 @@ const metricNames: Row = {
   VACCINATION_RATE: "疫苗接种率",
   FOLLOWUP_ON_TIME: "跟进按期完成率",
   CHANNEL_USAGE: "渠道使用率",
+  NOTICE_STATUS_COUNT: "接收状态数量",
+  VACCINE_STATUS_COUNT: "疫苗接种状态人数",
+  ELIGIBILITY_UNKNOWN: "接种资格待核实人数",
 };
 const dimensionNames: Row = {
   HOME_VISIT: "上门告知",
   FAMILY_RELAY: "家属转告",
   BULLETIN: "公告栏张贴",
+  SMS: "短信通知",
 };
 const percent = (v: any) =>
   v === null || v === undefined
@@ -92,10 +155,20 @@ const channelTotal = computed(() =>
 const coreCards = computed(() =>
   [
     { code: "NOTICE_COVERAGE", label: "通知覆盖率", tone: "brand", icon: Bell },
-    { code: "SERVICE_CLOSURE", label: "服务闭环率", tone: "green", icon: CircleCheckFilled },
+    {
+      code: "SERVICE_CLOSURE",
+      label: "服务闭环率",
+      tone: "green",
+      icon: CircleCheckFilled,
+    },
     { code: "SATISFACTION", label: "满意度", tone: "gold", icon: Star },
     { code: "FEEDBACK_RATE", label: "反馈率", tone: "blue", icon: Tickets },
-    { code: "FOLLOWUP_ON_TIME", label: "按期完成率", tone: "brand", icon: Timer },
+    {
+      code: "FOLLOWUP_ON_TIME",
+      label: "按期完成率",
+      tone: "brand",
+      icon: Timer,
+    },
   ].map((def) => {
     const m = (data.value?.metrics || []).find(
       (x: Row) => x.code === def.code && x.dimension === "ALL",
@@ -109,13 +182,14 @@ const coreCards = computed(() =>
 );
 async function load() {
   if (!month.value) return;
+  if (dateMode.value === "range" && dateRange.value?.length !== 2) {
+    ElMessage.warning("请选择完整统计日期范围");
+    return;
+  }
   loading.value = true;
   error.value = "";
   try {
-    data.value = await api(
-      "/reports/metrics?" +
-        query({ month: month.value, communityId: reportCommunity.value }),
-    );
+    data.value = await api("/reports/metrics?" + query(reportQuery()));
     const list = await api("/report-jobs?pageSize=100");
     exports.value = list.items.map((r: Row) => ({
       ...r,
@@ -144,16 +218,17 @@ async function check(item: Row) {
 }
 async function exportReport(format: string) {
   if (exporting.value || !month.value) return;
+  if (dateMode.value === "range" && dateRange.value?.length !== 2) {
+    ElMessage.warning("请选择完整统计日期范围");
+    return;
+  }
   exporting.value = true;
   try {
     const r = await api(
       "/report-jobs",
       "POST",
       {
-        query: {
-          month: month.value,
-          communityId: reportCommunity.value || null,
-        },
+        query: reportQuery(),
         format,
       },
       idempotency(),
@@ -190,7 +265,10 @@ async function saveFile(row: Row) {
     fail(e);
   }
 }
-onMounted(load);
+onMounted(async () => {
+  await loadFilters();
+  await load();
+});
 onBeforeUnmount(() => {
   alive = false;
 });
@@ -216,6 +294,7 @@ onBeforeUnmount(() => {
       <el-select
         v-if="auth.can('report:read:community')"
         v-model="reportCommunity"
+        @change="communityChanged"
         placeholder="全部社区"
         clearable
         ><el-option label="全部社区" value="" /><el-option
@@ -224,7 +303,53 @@ onBeforeUnmount(() => {
           :value="c.id"
           :label="c.name"
       /></el-select>
+      <el-radio-group v-model="dateMode"
+        ><el-radio-button value="month">按月</el-radio-button
+        ><el-radio-button value="range"
+          >时间范围</el-radio-button
+        ></el-radio-group
+      >
       <el-date-picker
+        v-if="dateMode === 'range'"
+        v-model="dateRange"
+        type="daterange"
+        value-format="YYYY-MM-DD"
+        start-placeholder="开始日期"
+        end-placeholder="结束日期"
+      />
+      <el-select
+        v-if="auth.can('report:read:community')"
+        v-model="filters.ownerId"
+        clearable
+        placeholder="全部经办人"
+        ><el-option
+          v-for="w in workers"
+          :key="w.id"
+          :value="w.id"
+          :label="`${w.displayName}（${w.username}）`"
+      /></el-select>
+      <el-select
+        v-model="filters.noticeType"
+        clearable
+        placeholder="全部通知类型"
+        ><el-option label="生日关怀" value="BIRTHDAY" /><el-option
+          label="疫苗提醒"
+          value="VACCINE" /><el-option
+          label="健康讲座"
+          value="LECTURE" /><el-option label="其他政务通知" value="OTHER"
+      /></el-select>
+      <el-select
+        v-model="filters.campaignId"
+        clearable
+        placeholder="全部疫苗周期"
+        ><el-option
+          v-for="c in campaigns"
+          :key="c.id"
+          :value="c.id"
+          :label="c.name"
+      /></el-select>
+      <el-date-picker
+        v-if="dateMode === 'month'"
         v-model="month"
         type="month"
         value-format="YYYY-MM"
@@ -247,7 +372,8 @@ onBeforeUnmount(() => {
       >
     </div>
     <div v-if="data" class="report-meta">
-      <span>快照 {{ date(data.snapshotAt) }}</span>
+      <span>统计范围 {{ data.startDate }} 至 {{ data.endDate }}</span
+      ><span>快照 {{ date(data.snapshotAt) }}</span>
       <span>口径 {{ data.metricVersion }}</span>
       <span>比例按实际有效样本计算</span>
     </div>
@@ -280,7 +406,7 @@ onBeforeUnmount(() => {
       <div class="panel-head">
         <div>
           <h2>通知渠道使用占比</h2>
-          <p>按触达方式统计当月尝试次数</p>
+          <p>按触达方式统计所选范围内的通知尝试次数</p>
         </div>
       </div>
       <div class="chart-body">
@@ -289,9 +415,66 @@ onBeforeUnmount(() => {
           :data="channelData"
           center-label="触达次数"
         />
-        <p v-else class="chart-empty">本月暂无触达记录</p>
+        <p v-else class="chart-empty">所选范围暂无触达记录</p>
       </div>
     </article>
+  </section>
+  <section v-if="data" class="panel mb">
+    <div class="panel-head">
+      <div>
+        <h2>疫苗接种状态人数</h2>
+        <p>按具体服务周期统计；资格未知不进入接种率分母。</p>
+      </div>
+    </div>
+    <el-table
+      :data="data.vaccineSummary || []"
+      empty-text="所选范围暂无已核验的疫苗记录"
+      ><el-table-column
+        prop="campaignName"
+        label="疫苗服务周期"
+        min-width="210"
+      /><el-table-column prop="notVaccinated" label="未接种" /><el-table-column
+        prop="partial"
+        label="部分完成"
+      /><el-table-column prop="allCompleted" label="已完成" /><el-table-column
+        prop="unknownStatus"
+        label="状态待核实"
+      /><el-table-column
+        prop="unknownEligibility"
+        label="资格待核实"
+      /><el-table-column label="符合条件接种率" min-width="150"
+        ><template #default="{ row }">{{
+          Number(row.eligible)
+            ? percent(Number(row.completed) / Number(row.eligible))
+            : "无有效样本"
+        }}</template></el-table-column
+      ></el-table
+    >
+  </section>
+  <section v-if="data" class="panel mb">
+    <div class="panel-head">
+      <div>
+        <h2>服务缺口分析</h2>
+        <p>基于已登记状态定位工作缺口，具体拒绝或医学原因需核实原始记录。</p>
+      </div>
+    </div>
+    <el-table
+      :data="data.serviceGaps || []"
+      empty-text="本期已登记资料暂无待办缺口"
+      ><el-table-column
+        prop="title"
+        label="服务事项"
+        min-width="150" /><el-table-column
+        prop="count"
+        label="缺口数量"
+        width="100" /><el-table-column
+        prop="analysis"
+        label="登记情况"
+        min-width="250" /><el-table-column
+        prop="suggestion"
+        label="后续措施"
+        min-width="250"
+    /></el-table>
   </section>
   <div v-if="data" class="details-bar">
     <el-button
@@ -315,8 +498,7 @@ onBeforeUnmount(() => {
         <div class="metric-card-head">
           <span>{{ metricNames[m.code] || m.code }}</span>
           <small v-if="m.dimension !== 'ALL'">{{
-            dimensionNames[m.dimension] ||
-            m.dimension.replace("CAMPAIGN:", "周期 ")
+            dimensionText(m.dimension)
           }}</small>
           <el-icon v-else class="metric-card-icon"><DataAnalysis /></el-icon>
         </div>
@@ -341,8 +523,10 @@ onBeforeUnmount(() => {
   <section class="panel report-list">
     <div class="panel-head">
       <div>
-        <h2><el-icon class="head-icon"><Download /></el-icon>本次会话的导出</h2>
-        <p>生成完成后下载，刷新页面前请保存所需文件。</p>
+        <h2>
+          <el-icon class="head-icon"><Download /></el-icon>报表导出记录
+        </h2>
+        <p>生成完成后下载；历史任务会保留，文件有效期内可再次下载。</p>
       </div>
     </div>
     <el-table :data="exports" empty-text="选择月份，点击上方按钮生成报表"
@@ -356,7 +540,10 @@ onBeforeUnmount(() => {
         prop="error"
         label="提示"
         min-width="180"
-      /><el-table-column label="操作" min-width="160" class-name="actions-column"
+      /><el-table-column
+        label="操作"
+        min-width="160"
+        class-name="actions-column"
         ><template #default="{ row }"
           ><el-button
             v-if="row.status === 'COMPLETED'"

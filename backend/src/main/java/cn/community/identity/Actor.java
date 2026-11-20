@@ -15,6 +15,17 @@ public record Actor(
   }
 
   public boolean has(String permission) {
+    // 管理员负责配置、归属分配和监督；业务执行必须由负责网格员留痕。
+    if (admin()
+        && Set.of(
+                "elder:create",
+                "elder:update",
+                "vaccine:verify",
+                "notice:create",
+                "notice:receive",
+                "followup:update",
+                "feedback:create")
+            .contains(permission)) return false;
     if (!admin()
         && (permission.startsWith("system:")
             || permission.equals("audit:read")

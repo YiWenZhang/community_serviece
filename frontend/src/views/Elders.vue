@@ -27,6 +27,8 @@ const filters = reactive({
   name: "",
   phone: "",
   birthMonth: "",
+  birthFrom: "",
+  birthTo: "",
   vaccinationStatus: "",
   needId: "",
 });
@@ -40,6 +42,7 @@ const form = reactive<Row>({
   familyName: "",
   familyRelation: "",
   familyPhone: "",
+  familySmsAllowed: false,
   ownerUserId: "",
   gridId: "",
   sex: "UNKNOWN",
@@ -112,6 +115,7 @@ function create() {
     needIds: [],
     remark: "",
     status: "ACTIVE",
+    familySmsAllowed: false,
   });
   editOpen.value = true;
 }
@@ -135,6 +139,7 @@ async function edit(row: Row) {
       needIds: d.needIds,
       remark: d.remark || "",
       status: d.status,
+      familySmsAllowed: Boolean(d.familySmsAllowed),
     });
     editOpen.value = true;
   } catch (e) {
@@ -149,16 +154,19 @@ async function save() {
   saving.value = true;
   try {
     const profile = {
-      personalInfo: Object.fromEntries(
-        [
-          "name",
-          "phone",
-          "address",
-          "familyName",
-          "familyRelation",
-          "familyPhone",
-        ].map((key) => [key, form[key] || ""]),
-      ),
+      personalInfo: {
+        ...Object.fromEntries(
+          [
+            "name",
+            "phone",
+            "address",
+            "familyName",
+            "familyRelation",
+            "familyPhone",
+          ].map((key) => [key, form[key] || ""]),
+        ),
+        familySmsAllowed: Boolean(form.familySmsAllowed),
+      },
       ownerUserId: editing.value ? null : form.ownerUserId,
       gridId: form.gridId,
       sex: form.sex,
@@ -378,6 +386,17 @@ async function saveTransfer() {
           load();
         "
       />
+      <el-date-picker
+        v-model="filters.birthFrom"
+        type="month"
+        value-format="YYYY-MM"
+        placeholder="出生年月起"
+      /><el-date-picker
+        v-model="filters.birthTo"
+        type="month"
+        value-format="YYYY-MM"
+        placeholder="出生年月止（同月为精确查询）"
+      />
       <el-select v-model="filters.birthMonth" clearable placeholder="出生月份"
         ><el-option
           v-for="m in 12"
@@ -393,6 +412,12 @@ async function saveTransfer() {
           :key="v"
           :value="v"
           :label="v === 'COMPLETED' ? '已完成接种' : label(v)" /></el-select
+      ><el-select v-model="filters.needId" clearable placeholder="全部服务需求"
+        ><el-option
+          v-for="n in auth.dictionaries.serviceNeeds"
+          :key="n.id"
+          :value="n.id"
+          :label="n.name" /></el-select
       ><el-button
         :icon="Search"
         @click="
@@ -439,7 +464,28 @@ async function saveTransfer() {
       ><el-table-column label="状态" width="100"
         ><template #default="{ row }"
           ><Status :value="row.status" /></template></el-table-column
-      ><el-table-column label="更新时间" min-width="165"
+      ><el-table-column label="疫苗接种状态" min-width="240"
+        ><template #default="{ row }">{{
+          (row.vaccineStatuses || [])
+            .map(
+              (v: Row) =>
+                v.name +
+                "：" +
+                (v.vaccinationStatus === "COMPLETED"
+                  ? "已完成接种"
+                  : label(v.vaccinationStatus)),
+            )
+            .join("；") || "待核验"
+        }}</template></el-table-column
+      ><el-table-column
+        prop="registrarName"
+        label="登记人"
+        min-width="100"
+      /><el-table-column
+        prop="ownerName"
+        label="负责网格员"
+        min-width="110"
+      /><el-table-column label="更新时间" min-width="165"
         ><template #default="{ row }">{{
           date(row.infoUpdatedAt)
         }}</template></el-table-column
@@ -532,6 +578,11 @@ async function saveTransfer() {
             maxlength="24"
             inputmode="tel"
         /></el-form-item>
+        <el-form-item class="span-2"
+          ><el-checkbox v-model="form.familySmsAllowed"
+            >家属手机号已备案，并已获短信服务通知授权</el-checkbox
+          ></el-form-item
+        >
         <el-form-item
           v-if="!editing && auth.user?.roles?.includes('ADMIN')"
           label="负责网格员 *"
@@ -562,6 +613,7 @@ async function saveTransfer() {
             v-model="form.birthMonth"
             type="month"
             value-format="YYYY-MM"
+            format="YYYY 年 MM 月"
             placeholder="选择年月" /></el-form-item
         ><el-form-item v-if="editing" label="档案状态"
           ><el-select v-model="form.status"

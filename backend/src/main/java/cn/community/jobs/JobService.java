@@ -53,9 +53,18 @@ public class JobService {
   public Object detail(Actor a, long id) {
     var row =
         db.one(
-            "SELECT id,job_type,status,retry_count,max_retries,error_summary,created_at,updated_at"
-                + " FROM job_run WHERE id=:id AND community_id=:community AND created_by=:actor",
-            Db.p("id", id, "community", a.communityId(), "actor", a.id()));
+            "SELECT id,job_type,status,retry_count,max_retries,error_summary,created_at,updated_at,(SELECT display_name FROM sys_user WHERE id=job_run.created_by) AS worker_name"
+                + " FROM job_run WHERE id=:id AND community_id=:community AND (created_by=:actor OR"
+                + " :admin)",
+            Db.p(
+                "id",
+                id,
+                "community",
+                a.communityId(),
+                "actor",
+                a.id(),
+                "admin",
+                a.admin() && a.has("notice:rule:manage")));
     return row;
   }
 }

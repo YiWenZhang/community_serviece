@@ -373,7 +373,9 @@ public final class InitialDataInstaller {
   private void migratePrivateSchema() {
     new org.springframework.jdbc.datasource.init.ResourceDatabasePopulator(
             new org.springframework.core.io.FileSystemResource(
-                project.resolve("database/migrations/V003__elder_personal_info_encryption.sql")))
+                project.resolve("database/migrations/V003__elder_personal_info_encryption.sql")),
+            new org.springframework.core.io.FileSystemResource(
+                project.resolve("database/migrations/V004__workflow_completion.sql")))
         .execute(source);
   }
 
@@ -405,7 +407,7 @@ public final class InitialDataInstaller {
     migratePrivateSchema();
     journal.put("status", "SUCCESS");
     writeJournal(backup, journal);
-    System.out.println("V003升级完成，原有老人、账号、政策及运行文件保留。旧档案姓名和联系方式请补录；梁山姓名初始包需使用重建命令安装。");
+    System.out.println("V003/V004升级完成，原有老人、账号、政策及运行文件保留。旧档案姓名和联系方式请补录；梁山姓名初始包需使用重建命令安装。");
     System.out.println("数据库备份：" + backup);
   }
 
@@ -561,7 +563,7 @@ public final class InitialDataInstaller {
       var p = products[i].split("\\|");
       db.insert("vaccine_product", Db.p("id", i + 1, "code", p[0], "name", p[1]));
     }
-    db.update("INSERT INTO app_schema_version(version) VALUES(2),(3)", Map.of());
+    db.update("INSERT INTO app_schema_version(version) VALUES(2),(3),(4)", Map.of());
     db.update("INSERT INTO ai_schema_version(version) VALUES(1)", Map.of());
   }
 
@@ -953,7 +955,9 @@ public final class InitialDataInstaller {
                     result,
                     unreachable,
                     reason,
-                    confirmed ? "已经向本人说明，确认收到本次服务信息。" : null,
+                    confirmed
+                        ? "已经向本人说明，确认收到本次服务信息。"
+                        : "REFUSED".equals(result) ? "目前暂不参加本次活动。" : null,
                     family ? familyName : null,
                     family ? relation : null,
                     family ? confirmed : null,

@@ -60,9 +60,9 @@ names=['宋江','卢俊义','吴用','公孙胜','关胜','林冲','秦明','呼
 for i,e in enumerate(elders):
     e['sex']='FEMALE' if names[i] in ['孙二娘','扈三娘','顾大嫂'] else 'MALE'
     community=communities[e['community']-1]['name']
-    e['personalInfo']=dict(name=names[i],phone=f'1990000{i+1:04d}',address=f'{community}社区{i%3+1}号楼{i%2+1}单元{101+i}室',familyName=names[i][0]+'某',familyRelation='儿子' if i%2 else '女儿',familyPhone=f'1880000{i+1:04d}')
+    e['personalInfo']=dict(name=names[i],phone=f'1990000{i+1:04d}',address=f'{community}社区{i%3+1}号楼{i%2+1}单元{101+i}室',familyName=names[i][0]+'某',familyRelation='儿子' if i%2 else '女儿',familyPhone=f'1880000{i+1:04d}',familySmsAllowed=False)
 
-manifest = dict(version='2026.11-v2', description='四社区业务初始数据；人员与档案为合成资料，公开政策为来源全文，内部规范为本项目编制。', communities=communities, users=users, serviceNeeds=[dict(id=i+1,code=c,name=n) for i,(c,n) in enumerate(needs)], elders=elders)
+manifest = dict(version='2026.11-v3', description='四社区业务初始数据；人员与档案为合成资料，公开政策为来源全文，内部规范为本项目编制。', communities=communities, users=users, serviceNeeds=[dict(id=i+1,code=c,name=n) for i,(c,n) in enumerate(needs)], elders=elders)
 policy_catalog = OUT / 'policy-catalog.json'
 if policy_catalog.exists():
     manifest['policies'] = json.loads(policy_catalog.read_text(encoding='utf-8'))

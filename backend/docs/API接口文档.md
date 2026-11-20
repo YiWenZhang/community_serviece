@@ -1,6 +1,6 @@
 # 社区老年服务业务微服务接口文档
 
-版本1.5.0，基于实际运行服务导出的OpenAPI生成。含多社区、AI政策问答及密码安全接口。
+版本1.6.0，基于实际运行服务导出的OpenAPI生成。含多社区、AI政策问答、业务闭环与短信配置接口。
 安全与启动详见[密码与安全检查说明](../../密码与安全检查说明.md)，权限范围详见[多社区权限接口](多社区权限接口.md)。
 
 ## 一 调用约定
@@ -9,7 +9,7 @@
 
 使用JSESSIONID Cookie保持会话。登录前先GET`/auth/csrf`，将响应data.token作为`X-XSRF-TOKEN`头用于登录。登录后重新GET一次csrf；每次POST、PUT、PATCH、DELETE均携带Cookie和该头。过期会话返回401。
 
-管理员可管理全部社区与老人；网格员仅操作获授权社区内本人负责档案，统计员仅能查看汇总与报表。X-Community-Id每次由后端验证；指定负责人、移交及统计筛选均按角色和社区核验，不信任客户端传参。越权对象404；缺少功能权限403。
+管理员配置规则、分配社区及老人归属、查看全部社区工作进度，不代办建档、接种核验、通知发布、联系登记、短信、跟进和满意度等业务写入（旧角色权限仍有授权也返回403）。网格员仅操作获授权社区内本人负责档案，统计员仅能查看汇总与报表。X-Community-Id每次由后端验证；指定负责人、移交及统计筛选均按角色和社区核验，不信任客户端传参。越权对象404；缺少功能权限403。
 
 响应BIGINT主键、Long统计数量和total统一为字符串，避免JavaScript精度丢失；version、page、pageSize为整数，比例value为0到1的小数。SQL列名输出转换为camelCase。日期为YYYY-MM-DD，数据库时间为UTC，响应时间为ISO8601；展示请转上海时区。
 
@@ -30,9 +30,11 @@
 | 426 | HTTPS强制模式拒绝明文请求 |
 | 429 | 当前密码验证暂时锁定 |
 | 500 | 未预期服务错误，仅返回脱敏信息 |
-| 501 | 短信等真实外部集成未接入 |
+| 501 | 尚未实现的外部作业或手工短信登记不受理 |
 
 错误形式为`{code,message,traceId}`；Security过滤链拒绝时至少有code与message，并通过响应头`X-Trace-Id`提供链路编号。
+
+工作界面接口：GET /notice-recipients?workState=TODO&noticeType=BIRTHDAY 返回通知主题、业务类型、负责人、下一次期限和跟进任务ID；GET /notices?status=DRAFT 返回待发布事项和可见名单进度。默认ALL兼容原调用，TODO只包含已发布且未终结工作。未发布、取消和已闭环记录不进入待办。
 
 ## 二 权限与接口索引
 
@@ -74,6 +76,7 @@
 | GET | `/api/v1/dictionaries` | 本社区网格与需求疫苗字典 |
 | GET | `/api/v1/elders` | 本人老人分页，编号精确检索及出生月份疫苗需求筛选 |
 | POST | `/api/v1/elders` | 登记老人，事务分配编号并加密 |
+| GET | `/api/v1/elders/birthday-care` | 生日月份关怀名单，管理员可跨社区，网格员仅本人负责 |
 | GET | `/api/v1/elders/{id}` | 本人档案详情及需求疫苗信息 |
 | PATCH | `/api/v1/elders/{id}` | 维护本人档案和需求，校验version |
 | GET | `/api/v1/elders/{id}/history` | 本人档案接种和归属时间线 |
@@ -93,9 +96,12 @@
 | POST | `/api/v1/notice-recipients/{id}/attempts` | 幂等登记触达，同事务变更接收状态和跟进任务 |
 | POST | `/api/v1/notice-recipients/{id}/feedback` | 采集或更正满意度，版本追加不覆盖 |
 | POST | `/api/v1/notice-recipients/{id}/reopen` | 有原因重开，保留既有触达与事件 |
+| GET | `/api/v1/notice-recipients/{id}/sms` |  |
+| POST | `/api/v1/notice-recipients/{id}/sms` |  |
 | GET | `/api/v1/notice-rules` | 管理员读取本社区通知规则 |
 | POST | `/api/v1/notice-rules` | 创建生日或疫苗通知规则 |
 | PUT | `/api/v1/notice-rules/{id}` | 更新规则版本与启用状态 |
+| POST | `/api/v1/notice-rules/{id}/generate` | 管理员立即按本社区各负责人范围排队生成通知 |
 | GET | `/api/v1/notices` | 本人可见通知分页 |
 | POST | `/api/v1/notices` | 创建草稿和本人对象名单 |
 | GET | `/api/v1/notices/{id}` | 通知内容及本人负责的对象 |
@@ -105,6 +111,7 @@
 | GET | `/api/v1/report-jobs` |  |
 | POST | `/api/v1/report-jobs` | 异步导出Excel或Word月报，返回作业ID |
 | GET | `/api/v1/report-jobs/{id}` | 查询本人申请的月报状态与文件编号 |
+| GET | `/api/v1/reports/filters` | 报表经办人与疫苗周期筛选字典，不返回老人明细 |
 | GET | `/api/v1/reports/metrics` | 月份汇总，权限限制本人或社区，比例保留分子分母 |
 | GET | `/api/v1/roles` | 角色和权限关联 |
 | PUT | `/api/v1/roles/{id}/permissions` | 替换角色权限，使该角色所有旧会话失效 |
@@ -112,13 +119,17 @@
 | POST | `/api/v1/settings/service-needs` | 新增服务需求字典，不修改档案表结构 |
 | POST | `/api/v1/settings/vaccine-campaigns` | 新增年度周期和接种阶段，资格由授权人员核验 |
 | POST | `/api/v1/settings/vaccine-products` | 新增疫苗产品字典 |
+| GET | `/api/v1/sms/settings` |  |
+| PUT | `/api/v1/sms/settings` |  |
 | GET | `/api/v1/users` | 本社区工作人员列表，不返回密码散列 |
 | POST | `/api/v1/users` | 创建本社区应用用户及角色 |
 | PATCH | `/api/v1/users/{id}` | 变更工作人员状态角色，旧会话失效 |
 | POST | `/api/v1/users/{id}/password` | 管理员重置应用用户密码，不涉及MySQL密码 |
 | POST | `/api/v1/users/{id}/reset-password` | 管理员重置应用用户密码，不涉及MySQL密码 |
+| GET | `/api/v1/work/filters` | 当前社区可查看的负责人选项，网格员仅返回本人 |
+| GET | `/api/v1/work/overview` | 管理员按网格员查看当前社区联系闭环与跟进完成情况 |
 
-共77个HTTP操作。下节逐项列出路径、查询、请求头及请求体；结构类型在第四节展开。
+共86个HTTP操作。下节逐项列出路径、查询、请求头及请求体；结构类型在第四节展开。
 
 ## 三 逐接口契约
 
@@ -469,6 +480,8 @@
 | needId | query | 否 | integer (int64) | — |
 | name | query | 否 | string | — |
 | phone | query | 否 | string | — |
+| birthFrom | query | 否 | string | — |
+| birthTo | query | 否 | string | — |
 
 响应为data及traceId；创建返回内部id，修改通常返回id及新version，列表和详情按当前用户范围过滤。字段含义与业务示例见后文。
 
@@ -482,7 +495,18 @@
 
 响应为data及traceId；创建返回内部id，修改通常返回id及新version，列表和详情按当前用户范围过滤。字段含义与业务示例见后文。
 
-### 35 本人档案详情及需求疫苗信息
+### 35 生日月份关怀名单，管理员可跨社区，网格员仅本人负责
+
+`GET /api/v1/elders/birthday-care`
+
+| 参数 | 位置 | 必填 | 类型 | 约束 |
+| --- | --- | --- | --- | --- |
+| month | query | 否 | string | — |
+| page | query | 否 | integer (int32) | default=1 |
+
+响应为data及traceId；创建返回内部id，修改通常返回id及新version，列表和详情按当前用户范围过滤。字段含义与业务示例见后文。
+
+### 36 本人档案详情及需求疫苗信息
 
 `GET /api/v1/elders/{id}`
 
@@ -492,7 +516,7 @@
 
 响应为data及traceId；创建返回内部id，修改通常返回id及新version，列表和详情按当前用户范围过滤。字段含义与业务示例见后文。
 
-### 36 维护本人档案和需求，校验version
+### 37 维护本人档案和需求，校验version
 
 `PATCH /api/v1/elders/{id}`
 
@@ -506,7 +530,7 @@
 
 响应为data及traceId；创建返回内部id，修改通常返回id及新version，列表和详情按当前用户范围过滤。字段含义与业务示例见后文。
 
-### 37 本人档案接种和归属时间线
+### 38 本人档案接种和归属时间线
 
 `GET /api/v1/elders/{id}/history`
 
@@ -516,7 +540,7 @@
 
 响应为data及traceId；创建返回内部id，修改通常返回id及新version，列表和详情按当前用户范围过滤。字段含义与业务示例见后文。
 
-### 38 管理员原子移交档案及未完成通知跟进
+### 39 管理员原子移交档案及未完成通知跟进
 
 `POST /api/v1/elders/{id}/transfer`
 
@@ -530,7 +554,7 @@
 
 响应为data及traceId；创建返回内部id，修改通常返回id及新version，列表和详情按当前用户范围过滤。字段含义与业务示例见后文。
 
-### 39 人工核验具体疫苗周期资格、预约及接种事实
+### 40 人工核验具体疫苗周期资格、预约及接种事实
 
 `PUT /api/v1/elders/{id}/vaccines`
 
@@ -544,7 +568,7 @@
 
 当前状态及核验历史同事务；未知资格不计分母。已接种需日期和针次，已有接种状态的更正追加CORRECTION历史。
 
-### 40 上传PNG或JPEG，重编码隔离保存
+### 41 上传PNG或JPEG，重编码隔离保存
 
 `POST /api/v1/files`
 
@@ -558,7 +582,7 @@
 
 multipart字段`file`和`redactionConfirmed=true`，仅有效JPEG或PNG，最多20MB及2500万像素，后端重编码为PNG移除原元数据；返回id、TEMP和PENDING，不能直接用于确认凭证。
 
-### 41 鉴权下载业务附件或本人的导出文件
+### 42 鉴权下载业务附件或本人的导出文件
 
 `GET /api/v1/files/{id}/content`
 
@@ -568,7 +592,7 @@ multipart字段`file`和`redactionConfirmed=true`，仅有效JPEG或PNG，最多
 
 成功返回文件二进制流和Content-Disposition，不使用data包装。尚未关联的附件仅上传者可读，关联后按当前负责人的业务权限读取，原上传者移交后失去读取权；报表需申请人且仍具有对应范围导出权限，过期文件不可下载。
 
-### 42 上传者人工确认脱敏后启用附件
+### 43 上传者人工确认脱敏后启用附件
 
 `POST /api/v1/files/{id}/finalize`
 
@@ -582,7 +606,7 @@ multipart字段`file`和`redactionConfirmed=true`，仅有效JPEG或PNG，最多
 
 上传者明确确认脱敏后返回id与ACTIVE；不代表系统已自动识别所有隐私或接入第三方杀毒。
 
-### 43 本人跟进任务分页，支持状态及逾期筛选
+### 44 本人跟进任务分页，支持状态及逾期筛选
 
 `GET /api/v1/followups`
 
@@ -592,10 +616,15 @@ multipart字段`file`和`redactionConfirmed=true`，仅有效JPEG或PNG，最多
 | pageSize | query | 否 | integer (int32) | default=20 |
 | status | query | 否 | string | — |
 | overdue | query | 否 | boolean | default=False |
+| recipientId | query | 否 | integer (int64) | — |
+| noticeType | query | 否 | string | — |
+| ownerId | query | 否 | integer (int64) | — |
+| taskType | query | 否 | string | — |
+| deadline | query | 否 | string | default=ALL |
 
 响应为data及traceId；创建返回内部id，修改通常返回id及新version，列表和详情按当前用户范围过滤。字段含义与业务示例见后文。
 
-### 44 为本人未终结通知创建人工跟进，同类型未完成任务去重
+### 45 为本人未终结通知创建人工跟进，同类型未完成任务去重
 
 `POST /api/v1/followups`
 
@@ -605,7 +634,7 @@ multipart字段`file`和`redactionConfirmed=true`，仅有效JPEG或PNG，最多
 
 响应为data及traceId；创建返回内部id，修改通常返回id及新version，列表和详情按当前用户范围过滤。字段含义与业务示例见后文。
 
-### 45 跟进任务及执行历史
+### 46 跟进任务及执行历史
 
 `GET /api/v1/followups/{id}`
 
@@ -615,7 +644,7 @@ multipart字段`file`和`redactionConfirmed=true`，仅有效JPEG或PNG，最多
 
 响应为data及traceId；创建返回内部id，修改通常返回id及新version，列表和详情按当前用户范围过滤。字段含义与业务示例见后文。
 
-### 46 幂等记录跟进，原子结束旧任务并维护接收及后续任务
+### 47 幂等记录跟进，原子结束旧任务并维护接收及后续任务
 
 `POST /api/v1/followups/{id}/records`
 
@@ -632,7 +661,7 @@ multipart字段`file`和`redactionConfirmed=true`，仅有效JPEG或PNG，最多
 
 响应为data及traceId；创建返回内部id，修改通常返回id及新version，列表和详情按当前用户范围过滤。字段含义与业务示例见后文。
 
-### 47 仅申请人查看作业状态及脱敏错误
+### 48 仅申请人查看作业状态及脱敏错误
 
 `GET /api/v1/jobs/{id}`
 
@@ -642,7 +671,7 @@ multipart字段`file`和`redactionConfirmed=true`，仅有效JPEG或PNG，最多
 
 响应为data及traceId；创建返回内部id，修改通常返回id及新version，列表和详情按当前用户范围过滤。字段含义与业务示例见后文。
 
-### 48 排队按规则生成本人通知；返回持久作业编号
+### 49 排队按规则生成本人通知；返回持久作业编号
 
 `POST /api/v1/notice-generations`
 
@@ -658,7 +687,7 @@ multipart字段`file`和`redactionConfirmed=true`，仅有效JPEG或PNG，最多
 
 返回data.id作业编号；生成范围为当前网格员本人。规则需由管理员先启用。
 
-### 49 本人接收对象分页
+### 50 本人接收对象分页
 
 `GET /api/v1/notice-recipients`
 
@@ -667,10 +696,14 @@ multipart字段`file`和`redactionConfirmed=true`，仅有效JPEG或PNG，最多
 | page | query | 否 | integer (int32) | default=1 |
 | pageSize | query | 否 | integer (int32) | default=20 |
 | receiptStatus | query | 否 | string | — |
+| noticeType | query | 否 | string | — |
+| workState | query | 否 | string | default=ALL |
+| noticeId | query | 否 | integer (int64) | — |
+| ownerId | query | 否 | integer (int64) | — |
 
 响应为data及traceId；创建返回内部id，修改通常返回id及新version，列表和详情按当前用户范围过滤。字段含义与业务示例见后文。
 
-### 50 接收对象详情、触达、状态历史和满意度版本
+### 51 接收对象详情、触达、状态历史和满意度版本
 
 `GET /api/v1/notice-recipients/{id}`
 
@@ -680,7 +713,7 @@ multipart字段`file`和`redactionConfirmed=true`，仅有效JPEG或PNG，最多
 
 响应为data及traceId；创建返回内部id，修改通常返回id及新version，列表和详情按当前用户范围过滤。字段含义与业务示例见后文。
 
-### 51 幂等登记触达，同事务变更接收状态和跟进任务
+### 52 幂等登记触达，同事务变更接收状态和跟进任务
 
 `POST /api/v1/notice-recipients/{id}/attempts`
 
@@ -697,7 +730,7 @@ multipart字段`file`和`redactionConfirmed=true`，仅有效JPEG或PNG，最多
 
 响应为data及traceId；创建返回内部id，修改通常返回id及新version，列表和详情按当前用户范围过滤。字段含义与业务示例见后文。
 
-### 52 采集或更正满意度，版本追加不覆盖
+### 53 采集或更正满意度，版本追加不覆盖
 
 `POST /api/v1/notice-recipients/{id}/feedback`
 
@@ -711,7 +744,7 @@ multipart字段`file`和`redactionConfirmed=true`，仅有效JPEG或PNG，最多
 
 响应为data及traceId；创建返回内部id，修改通常返回id及新version，列表和详情按当前用户范围过滤。字段含义与业务示例见后文。
 
-### 53 有原因重开，保留既有触达与事件
+### 54 有原因重开，保留既有触达与事件
 
 `POST /api/v1/notice-recipients/{id}/reopen`
 
@@ -725,13 +758,38 @@ multipart字段`file`和`redactionConfirmed=true`，仅有效JPEG或PNG，最多
 
 保留原触达和事件，重开接收对象并将批次恢复ACTIVE。必须说明原因，不能修改原反馈或伪造成功。
 
-### 54 管理员读取本社区通知规则
+### 55 /api/v1/notice-recipients/{id}/sms
+
+`GET /api/v1/notice-recipients/{id}/sms`
+
+| 参数 | 位置 | 必填 | 类型 | 约束 |
+| --- | --- | --- | --- | --- |
+| id | path | 是 | integer (int64) | — |
+
+响应为data及traceId；创建返回内部id，修改通常返回id及新version，列表和详情按当前用户范围过滤。字段含义与业务示例见后文。
+
+### 56 /api/v1/notice-recipients/{id}/sms
+
+`POST /api/v1/notice-recipients/{id}/sms`
+
+| 参数 | 位置 | 必填 | 类型 | 约束 |
+| --- | --- | --- | --- | --- |
+| id | path | 是 | integer (int64) | — |
+| Idempotency-Key | header | 是 | string | — |
+
+请求体：`application/json`，结构`Version`。
+
+写请求必须有有效CSRF头；除幂等接口外，创建失败重试前先查询结果，不能假设所有POST都支持幂等。
+
+响应为data及traceId；创建返回内部id，修改通常返回id及新version，列表和详情按当前用户范围过滤。字段含义与业务示例见后文。
+
+### 57 管理员读取本社区通知规则
 
 `GET /api/v1/notice-rules`
 
 响应为data及traceId；创建返回内部id，修改通常返回id及新version，列表和详情按当前用户范围过滤。字段含义与业务示例见后文。
 
-### 55 创建生日或疫苗通知规则
+### 58 创建生日或疫苗通知规则
 
 `POST /api/v1/notice-rules`
 
@@ -741,7 +799,7 @@ multipart字段`file`和`redactionConfirmed=true`，仅有效JPEG或PNG，最多
 
 响应为data及traceId；创建返回内部id，修改通常返回id及新version，列表和详情按当前用户范围过滤。字段含义与业务示例见后文。
 
-### 56 更新规则版本与启用状态
+### 59 更新规则版本与启用状态
 
 `PUT /api/v1/notice-rules/{id}`
 
@@ -755,7 +813,22 @@ multipart字段`file`和`redactionConfirmed=true`，仅有效JPEG或PNG，最多
 
 响应为data及traceId；创建返回内部id，修改通常返回id及新version，列表和详情按当前用户范围过滤。字段含义与业务示例见后文。
 
-### 57 本人可见通知分页
+### 60 管理员立即按本社区各负责人范围排队生成通知
+
+`POST /api/v1/notice-rules/{id}/generate`
+
+| 参数 | 位置 | 必填 | 类型 | 约束 |
+| --- | --- | --- | --- | --- |
+| id | path | 是 | integer (int64) | — |
+| Idempotency-Key | header | 是 | string | — |
+
+请求体：`application/json`，结构`Generation`。
+
+写请求必须有有效CSRF头；除幂等接口外，创建失败重试前先查询结果，不能假设所有POST都支持幂等。
+
+响应为data及traceId；创建返回内部id，修改通常返回id及新version，列表和详情按当前用户范围过滤。字段含义与业务示例见后文。
+
+### 61 本人可见通知分页
 
 `GET /api/v1/notices`
 
@@ -763,10 +836,13 @@ multipart字段`file`和`redactionConfirmed=true`，仅有效JPEG或PNG，最多
 | --- | --- | --- | --- | --- |
 | page | query | 否 | integer (int32) | default=1 |
 | pageSize | query | 否 | integer (int32) | default=20 |
+| noticeType | query | 否 | string | — |
+| status | query | 否 | string | — |
+| ownerId | query | 否 | integer (int64) | — |
 
 响应为data及traceId；创建返回内部id，修改通常返回id及新version，列表和详情按当前用户范围过滤。字段含义与业务示例见后文。
 
-### 58 创建草稿和本人对象名单
+### 62 创建草稿和本人对象名单
 
 `POST /api/v1/notices`
 
@@ -776,7 +852,7 @@ multipart字段`file`和`redactionConfirmed=true`，仅有效JPEG或PNG，最多
 
 响应为data及traceId；创建返回内部id，修改通常返回id及新version，列表和详情按当前用户范围过滤。字段含义与业务示例见后文。
 
-### 59 通知内容及本人负责的对象
+### 63 通知内容及本人负责的对象
 
 `GET /api/v1/notices/{id}`
 
@@ -786,7 +862,7 @@ multipart字段`file`和`redactionConfirmed=true`，仅有效JPEG或PNG，最多
 
 响应为data及traceId；创建返回内部id，修改通常返回id及新version，列表和详情按当前用户范围过滤。字段含义与业务示例见后文。
 
-### 60 激活草稿，冻结名单并生成疫苗提醒任务
+### 64 激活草稿，冻结名单并生成疫苗提醒任务
 
 `POST /api/v1/notices/{id}/activate`
 
@@ -800,7 +876,7 @@ multipart字段`file`和`redactionConfirmed=true`，仅有效JPEG或PNG，最多
 
 响应为data及traceId；创建返回内部id，修改通常返回id及新version，列表和详情按当前用户范围过滤。字段含义与业务示例见后文。
 
-### 61 取消通知及尚未结束的本人对象
+### 65 取消通知及尚未结束的本人对象
 
 `POST /api/v1/notices/{id}/cancel`
 
@@ -814,13 +890,13 @@ multipart字段`file`和`redactionConfirmed=true`，仅有效JPEG或PNG，最多
 
 响应为data及traceId；创建返回内部id，修改通常返回id及新version，列表和详情按当前用户范围过滤。字段含义与业务示例见后文。
 
-### 62 全部权限字典
+### 66 全部权限字典
 
 `GET /api/v1/permissions`
 
 响应为data及traceId；创建返回内部id，修改通常返回id及新version，列表和详情按当前用户范围过滤。字段含义与业务示例见后文。
 
-### 63 /api/v1/report-jobs
+### 67 /api/v1/report-jobs
 
 `GET /api/v1/report-jobs`
 
@@ -833,7 +909,7 @@ multipart字段`file`和`redactionConfirmed=true`，仅有效JPEG或PNG，最多
 
 响应为data及traceId；创建返回内部id，修改通常返回id及新version，列表和详情按当前用户范围过滤。字段含义与业务示例见后文。
 
-### 64 异步导出Excel或Word月报，返回作业ID
+### 68 异步导出Excel或Word月报，返回作业ID
 
 `POST /api/v1/report-jobs`
 
@@ -849,7 +925,7 @@ multipart字段`file`和`redactionConfirmed=true`，仅有效JPEG或PNG，最多
 
 返回data.reportJobId和data.jobId。轮询GET /jobs/{jobId}或GET /report-jobs/{reportJobId}，完成后用outputFileId下载。
 
-### 65 查询本人申请的月报状态与文件编号
+### 69 查询本人申请的月报状态与文件编号
 
 `GET /api/v1/report-jobs/{id}`
 
@@ -859,7 +935,17 @@ multipart字段`file`和`redactionConfirmed=true`，仅有效JPEG或PNG，最多
 
 响应为data及traceId；创建返回内部id，修改通常返回id及新version，列表和详情按当前用户范围过滤。字段含义与业务示例见后文。
 
-### 66 月份汇总，权限限制本人或社区，比例保留分子分母
+### 70 报表经办人与疫苗周期筛选字典，不返回老人明细
+
+`GET /api/v1/reports/filters`
+
+| 参数 | 位置 | 必填 | 类型 | 约束 |
+| --- | --- | --- | --- | --- |
+| communityId | query | 否 | integer (int64) | — |
+
+响应为data及traceId；创建返回内部id，修改通常返回id及新version，列表和详情按当前用户范围过滤。字段含义与业务示例见后文。
+
+### 71 月份汇总，权限限制本人或社区，比例保留分子分母
 
 `GET /api/v1/reports/metrics`
 
@@ -869,13 +955,13 @@ multipart字段`file`和`redactionConfirmed=true`，仅有效JPEG或PNG，最多
 
 返回month、ownerId、metricVersion、snapshotAt、cutoffAt及metrics数组。每个指标含code、dimension、numerator、denominator、value、nullReason。通知与反馈按事件或版本截止读取，疫苗按历史核验读取。
 
-### 67 角色和权限关联
+### 72 角色和权限关联
 
 `GET /api/v1/roles`
 
 响应为data及traceId；创建返回内部id，修改通常返回id及新version，列表和详情按当前用户范围过滤。字段含义与业务示例见后文。
 
-### 68 替换角色权限，使该角色所有旧会话失效
+### 73 替换角色权限，使该角色所有旧会话失效
 
 `PUT /api/v1/roles/{id}/permissions`
 
@@ -889,7 +975,7 @@ multipart字段`file`和`redactionConfirmed=true`，仅有效JPEG或PNG，最多
 
 响应为data及traceId；创建返回内部id，修改通常返回id及新version，列表和详情按当前用户范围过滤。字段含义与业务示例见后文。
 
-### 69 管理员新增本社区网格
+### 74 管理员新增本社区网格
 
 `POST /api/v1/settings/grids`
 
@@ -899,7 +985,7 @@ multipart字段`file`和`redactionConfirmed=true`，仅有效JPEG或PNG，最多
 
 响应为data及traceId；创建返回内部id，修改通常返回id及新version，列表和详情按当前用户范围过滤。字段含义与业务示例见后文。
 
-### 70 新增服务需求字典，不修改档案表结构
+### 75 新增服务需求字典，不修改档案表结构
 
 `POST /api/v1/settings/service-needs`
 
@@ -909,7 +995,7 @@ multipart字段`file`和`redactionConfirmed=true`，仅有效JPEG或PNG，最多
 
 响应为data及traceId；创建返回内部id，修改通常返回id及新version，列表和详情按当前用户范围过滤。字段含义与业务示例见后文。
 
-### 71 新增年度周期和接种阶段，资格由授权人员核验
+### 76 新增年度周期和接种阶段，资格由授权人员核验
 
 `POST /api/v1/settings/vaccine-campaigns`
 
@@ -919,7 +1005,7 @@ multipart字段`file`和`redactionConfirmed=true`，仅有效JPEG或PNG，最多
 
 响应为data及traceId；创建返回内部id，修改通常返回id及新version，列表和详情按当前用户范围过滤。字段含义与业务示例见后文。
 
-### 72 新增疫苗产品字典
+### 77 新增疫苗产品字典
 
 `POST /api/v1/settings/vaccine-products`
 
@@ -929,7 +1015,23 @@ multipart字段`file`和`redactionConfirmed=true`，仅有效JPEG或PNG，最多
 
 响应为data及traceId；创建返回内部id，修改通常返回id及新version，列表和详情按当前用户范围过滤。字段含义与业务示例见后文。
 
-### 73 本社区工作人员列表，不返回密码散列
+### 78 /api/v1/sms/settings
+
+`GET /api/v1/sms/settings`
+
+响应为data及traceId；创建返回内部id，修改通常返回id及新version，列表和详情按当前用户范围过滤。字段含义与业务示例见后文。
+
+### 79 /api/v1/sms/settings
+
+`PUT /api/v1/sms/settings`
+
+请求体：`application/json`，结构`Settings`。
+
+写请求必须有有效CSRF头；除幂等接口外，创建失败重试前先查询结果，不能假设所有POST都支持幂等。
+
+响应为data及traceId；创建返回内部id，修改通常返回id及新version，列表和详情按当前用户范围过滤。字段含义与业务示例见后文。
+
+### 80 本社区工作人员列表，不返回密码散列
 
 `GET /api/v1/users`
 
@@ -940,7 +1042,7 @@ multipart字段`file`和`redactionConfirmed=true`，仅有效JPEG或PNG，最多
 
 响应为data及traceId；创建返回内部id，修改通常返回id及新version，列表和详情按当前用户范围过滤。字段含义与业务示例见后文。
 
-### 74 创建本社区应用用户及角色
+### 81 创建本社区应用用户及角色
 
 `POST /api/v1/users`
 
@@ -950,7 +1052,7 @@ multipart字段`file`和`redactionConfirmed=true`，仅有效JPEG或PNG，最多
 
 响应为data及traceId；创建返回内部id，修改通常返回id及新version，列表和详情按当前用户范围过滤。字段含义与业务示例见后文。
 
-### 75 变更工作人员状态角色，旧会话失效
+### 82 变更工作人员状态角色，旧会话失效
 
 `PATCH /api/v1/users/{id}`
 
@@ -964,7 +1066,7 @@ multipart字段`file`和`redactionConfirmed=true`，仅有效JPEG或PNG，最多
 
 响应为data及traceId；创建返回内部id，修改通常返回id及新version，列表和详情按当前用户范围过滤。字段含义与业务示例见后文。
 
-### 76 管理员重置应用用户密码，不涉及MySQL密码
+### 83 管理员重置应用用户密码，不涉及MySQL密码
 
 `POST /api/v1/users/{id}/password`
 
@@ -978,7 +1080,7 @@ multipart字段`file`和`redactionConfirmed=true`，仅有效JPEG或PNG，最多
 
 响应为data及traceId；创建返回内部id，修改通常返回id及新version，列表和详情按当前用户范围过滤。字段含义与业务示例见后文。
 
-### 77 管理员重置应用用户密码，不涉及MySQL密码
+### 84 管理员重置应用用户密码，不涉及MySQL密码
 
 `POST /api/v1/users/{id}/reset-password`
 
@@ -992,6 +1094,23 @@ multipart字段`file`和`redactionConfirmed=true`，仅有效JPEG或PNG，最多
 
 响应为data及traceId；创建返回内部id，修改通常返回id及新version，列表和详情按当前用户范围过滤。字段含义与业务示例见后文。
 
+### 85 当前社区可查看的负责人选项，网格员仅返回本人
+
+`GET /api/v1/work/filters`
+
+响应为data及traceId；创建返回内部id，修改通常返回id及新version，列表和详情按当前用户范围过滤。字段含义与业务示例见后文。
+
+### 86 管理员按网格员查看当前社区联系闭环与跟进完成情况
+
+`GET /api/v1/work/overview`
+
+| 参数 | 位置 | 必填 | 类型 | 约束 |
+| --- | --- | --- | --- | --- |
+| noticeType | query | 否 | string | — |
+| ownerId | query | 否 | integer (int64) | — |
+
+响应为data及traceId；创建返回内部id，修改通常返回id及新version，列表和详情按当前用户范围过滤。字段含义与业务示例见后文。
+
 ## 四 请求对象字段字典
 
 以下必填项以实际OpenAPI的required为准。ID请求可用数字或十进制字符串，建议前端统一字符串。可选字段省略或为null；空集合请显式传[]。
@@ -1001,15 +1120,16 @@ multipart字段`file`和`redactionConfirmed=true`，仅有效JPEG或PNG，最多
 | 字段 | 类型 | 必填 | 规则与说明 |
 | --- | --- | --- | --- |
 | version | integer (int32) | 否 | 当前资源版本；先GET最新值，旧版本409；保持JSON整数；minimum=0 |
-| channel | string | 是 | HOME_VISIT、FAMILY_RELAY、BULLETIN；SMS本版返回501；pattern=HOME_VISIT或FAMILY_RELAY或BULLETIN或SMS |
+| channel | string | 是 | HOME_VISIT、FAMILY_RELAY、BULLETIN；短信通过独立发送入口调用备案网关，不允许手工登记虚假短信成功；pattern=HOME_VISIT或FAMILY_RELAY或BULLETIN或SMS |
 | result | string | 是 | POSTED、CONFIRMED、UNREACHABLE或REFUSED；须匹配渠道；pattern=POSTED或CONFIRMED或UNREACHABLE或REFUSED |
 | unreachableReason | string | 否 | NO_ONE_HOME、NO_ANSWER或OTHER；未联系上必填；minLength=0; maxLength=32 |
 | reasonText | string | 否 | 拒绝或其他未联系原因必填，客观描述；minLength=0; maxLength=300 |
 | feedbackQuote | string | 否 | 客观反馈原话，但需移除禁采信息；minLength=0; maxLength=500 |
-| familyNameMasked | string | 否 | 仅脱敏称谓，必须含某或*，例如张某；minLength=0; maxLength=40 |
+| familyNameMasked | string | 否 | 兼容旧客户端的脱敏称谓；新客户端使用familyName，实际姓名单独加密保存；minLength=0; maxLength=40 |
 | familyRelation | string | 否 | 家属关系，例如女儿；minLength=0; maxLength=32 |
 | relayConfirmed | boolean | 否 | 家属明确确认已转告；家属渠道确认接收必须true；— |
 | fileIds | array<integer (int64)> | 是 | 已由本人上传并确认脱敏的附件ID集合；无附件传[]；元素去重 |
+| familyName | string | 否 | 家属姓名或称呼，专用加密字段；minLength=0; maxLength=40 |
 
 ### Campaign
 
@@ -1019,8 +1139,8 @@ multipart字段`file`和`redactionConfirmed=true`，仅有效JPEG或PNG，最多
 | cycleKey | string | 是 | minLength=0; maxLength=32 |
 | doseStage | string | 是 | minLength=0; maxLength=32 |
 | name | string | 是 | 老人姓名（personalInfo内）；列表查询时为姓名精确匹配；minLength=0; maxLength=100 |
-| startDate | string (date) | 是 | — |
-| endDate | string (date) | 是 | — |
+| startDate | string (date) | 是 | 自定义统计开始日期YYYY-MM-DD，须与endDate同时填写；— |
+| endDate | string (date) | 是 | 自定义统计结束日期YYYY-MM-DD，包含当天；— |
 | eligibilityRuleRef | string | 否 | minLength=0; maxLength=200 |
 
 ### Change
@@ -1099,6 +1219,7 @@ multipart字段`file`和`redactionConfirmed=true`，仅有效JPEG或PNG，最多
 | familyName | string | 否 | 家属姓名或称呼，专用加密字段；minLength=0; maxLength=40 |
 | familyRelation | string | 否 | 家属关系，例如女儿；minLength=0; maxLength=24 |
 | familyPhone | string | 否 | 家属电话，专用加密字段；minLength=0; maxLength=24 |
+| familySmsAllowed | boolean | 否 | 家属手机号已备案并获短信通知授权；默认false，排队及发送时重新核验；— |
 
 ### Login
 
@@ -1118,7 +1239,7 @@ multipart字段`file`和`redactionConfirmed=true`，仅有效JPEG或PNG，最多
 
 | 字段 | 类型 | 必填 | 规则与说明 |
 | --- | --- | --- | --- |
-| recipientId | integer (int64) | 是 | — |
+| recipientId | integer (int64) | 是 | 仅查看这条联系记录的跟进任务，仍校验当前权限；— |
 | type | string | 是 | 具体枚举以pattern为准；通知类型或跟进类型，不能混用；pattern=RECONTACT或VERIFY_APPOINTMENT或PRE_VACCINE_REMINDER |
 | dueAt | string (date-time) | 是 | 任务截止时间，ISO8601含时区，例如2026-10-20T09:00:00+08:00；— |
 
@@ -1153,10 +1274,12 @@ multipart字段`file`和`redactionConfirmed=true`，仅有效JPEG或PNG，最多
 | 字段 | 类型 | 必填 | 规则与说明 |
 | --- | --- | --- | --- |
 | month | string | 是 | 统计月份YYYY-MM，边界使用Asia/Shanghai；pattern=\d{4}-(0[1-9]或1[0-2]) |
-| ownerId | integer (int64) | 否 | 统计经办人；社区统计可指定或为空，本人统计不可指定他人；— |
-| noticeType | string | 否 | 可选VACCINE、BIRTHDAY、LECTURE、OTHER；pattern=VACCINE或BIRTHDAY或LECTURE或OTHER |
+| ownerId | integer (int64) | 否 | 经办人/负责网格员；管理员可筛选当前社区人员，网格员始终与本人权限范围取交集，统计接口按报表权限处理；— |
+| noticeType | string | 否 | 业务分类：VACCINE、BIRTHDAY、LECTURE、OTHER；pattern=VACCINE或BIRTHDAY或LECTURE或OTHER |
 | campaignId | integer (int64) | 否 | 具体年度与阶段的疫苗服务周期；疫苗通知和规则必填；— |
 | communityId | integer (int64) | 否 | — |
+| startDate | string (date) | 否 | 自定义统计开始日期YYYY-MM-DD，须与endDate同时填写；— |
+| endDate | string (date) | 否 | 自定义统计结束日期YYYY-MM-DD，包含当天；— |
 
 ### Question
 
@@ -1195,10 +1318,21 @@ multipart字段`file`和`redactionConfirmed=true`，仅有效JPEG或PNG，最多
 | version | integer (int32) | 否 | 当前资源版本；先GET最新值，旧版本409；保持JSON整数；minimum=0 |
 | code | string | 是 | pattern=[A-Z0-9_]{1,32}; minLength=1 |
 | name | string | 是 | 老人姓名（personalInfo内）；列表查询时为姓名精确匹配；minLength=0; maxLength=80 |
-| noticeType | string | 是 | 可选VACCINE、BIRTHDAY、LECTURE、OTHER；pattern=BIRTHDAY或VACCINE |
+| noticeType | string | 是 | 业务分类：VACCINE、BIRTHDAY、LECTURE、OTHER；pattern=BIRTHDAY或VACCINE |
 | leadDays | integer (int32) | 否 | 提前准备天数，0至30；生日规则用于选择目标月份；minimum=0; maximum=30 |
 | campaignId | integer (int64) | 否 | 具体年度与阶段的疫苗服务周期；疫苗通知和规则必填；— |
 | enabled | boolean | 否 | — |
+
+### Settings
+
+| 字段 | 类型 | 必填 | 规则与说明 |
+| --- | --- | --- | --- |
+| version | integer (int32) | 否 | 当前资源版本；先GET最新值，旧版本409；保持JSON整数；minimum=0 |
+| enabled | boolean | 否 | — |
+| endpoint | string | 否 | minLength=0; maxLength=500 |
+| apiKey | string | 否 | minLength=0; maxLength=500 |
+| signature | string | 否 | minLength=0; maxLength=80 |
+| templateId | string | 否 | minLength=0; maxLength=100 |
 
 ### Toggle
 
@@ -1273,18 +1407,28 @@ multipart字段`file`和`redactionConfirmed=true`，仅有效JPEG或PNG，最多
 
 ### 登记老人
 
-POST /elders：
+POST /elders（示例ID需按本机字典替换，管理员须指定有效负责网格员）：
 
 ```json
 {
   "gridId": "1",
-  "sex": "FEMALE",
+  "ownerUserId": "3",
+  "sex": "MALE",
   "birthMonth": "1950-06",
-  "remark": "虚构演示档案",
+  "remark": "日常关怀",
   "needIds": [
     "1",
     "2"
-  ]
+  ],
+  "personalInfo": {
+    "name": "宋江",
+    "phone": "",
+    "address": "",
+    "familyName": "",
+    "familyRelation": "",
+    "familyPhone": "",
+    "familySmsAllowed": false
+  }
 }
 ```
 
@@ -1319,7 +1463,7 @@ POST /notice-recipients/{id}/attempts，头`Idempotency-Key: visit-20261016-001`
   "version": 1,
   "channel": "FAMILY_RELAY",
   "result": "CONFIRMED",
-  "familyNameMasked": "张某",
+  "familyName": "张某",
   "familyRelation": "女儿",
   "relayConfirmed": true,
   "feedbackQuote": "已经转告，同意参加",
@@ -1327,7 +1471,7 @@ POST /notice-recipients/{id}/attempts，头`Idempotency-Key: visit-20261016-001`
 }
 ```
 
-上门无人使用channel=HOME_VISIT、result=UNREACHABLE、unreachableReason=NO_ONE_HOME；reasonText记录客观原因。上门确认接收必须先上传图片、确认脱敏，再把文件id放fileIds。公告栏用BULLETIN加POSTED及照片，不认定个人接收。SMS渠道本版501。
+上门无人使用channel=HOME_VISIT、result=UNREACHABLE、unreachableReason=NO_ONE_HOME；reasonText记录客观原因。上门确认接收必须先上传图片、确认脱敏，再把文件id放fileIds。公告栏用BULLETIN加POSTED及照片，不认定个人接收。短信通过POST /notice-recipients/{id}/sms排队发送；手工触达登记接口拒绝SMS，避免伪造发送成功。
 
 ### 完成跟进
 
@@ -1342,7 +1486,7 @@ POST /notice-recipients/{id}/attempts，头`Idempotency-Key: visit-20261016-001`
     "version": 0,
     "channel": "FAMILY_RELAY",
     "result": "CONFIRMED",
-    "familyNameMasked": "张某",
+    "familyName": "张某",
     "familyRelation": "女儿",
     "relayConfirmed": true,
     "feedbackQuote": "已转告",
@@ -1380,6 +1524,6 @@ GET /reports/metrics?month=2026-10；统计员默认社区汇总，网格员默�
 
 ## 七 接入限制与微服务边界
 
-未接入真实短信、卫生数据或街道平台。没有AI接口，也没有向未来AI服务开放任意老人数据查询。当前账号与会话由本业务服务管理，未来AI鉴权需另行设计统一身份或可信令牌交换。
+短信通过可配置备案网关发送，须核验家属号码与明确授权，当前尚未配置真实平台。卫生服务中心同步和街道上报平台暂无实际接口。AI政策知识库及RAG受现有会话与社区权限约束，不向模型提供老人原始档案。
 
-当前使用31张已有表，无新增建表迁移。代码中没有通用任意表CRUD、原始SQL执行接口、默认通用管理员密码或匿名注册。详细运行、测试和当前边界见backend/README.md。
+完整系统使用41张表，部署时先按顺序升级V002、V003和V004。初始/重置密码按要求为123456，用户可自助修改；没有通用任意表CRUD、原始SQL执行接口或匿名注册。详细运行、测试和当前边界见backend/README.md。

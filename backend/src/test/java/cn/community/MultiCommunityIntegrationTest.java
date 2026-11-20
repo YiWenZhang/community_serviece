@@ -101,12 +101,13 @@ class MultiCommunityIntegrationTest {
   }
 
   @Test
-  void adminCanCreateReadUpdateAndAssignCommunityElders() {
-    long id = elder(admin, 2L);
+  void adminReadsAndAssignsWhileWorkerMaintainsCommunityElders() {
+    assertThatThrownBy(() -> elder(admin, 2L)).isInstanceOf(Problem.class);
+    long id = elder(worker, null);
     var d = elders.detail(admin, id);
     assertThat(d.get("owner_user_id").toString()).isEqualTo("2");
     elders.update(
-        admin,
+        worker,
         id,
         new ElderService.Edit(
             0, new ElderService.Draft(grid, "MALE", "1950-06", "更新虚构备注", Set.of()), "ACTIVE"));
@@ -181,7 +182,7 @@ class MultiCommunityIntegrationTest {
             () -> elders.transfer(admin, id, new ElderService.Transfer(0, 1L, 2L, "跨社区移交", 1L)))
         .isInstanceOf(Problem.class)
         .hasMessageContaining("未闭环");
-    notices.cancel(admin, notice, new NoticeService.Reason(1, "移交前取消"));
+    notices.cancel(worker, notice, new NoticeService.Reason(1, "移交前取消"));
     elders.transfer(admin, id, new ElderService.Transfer(0, 1L, 2L, "跨社区移交", 1L));
     assertThat(elders.detail(auth.worker(2, 1), id).get("community_id").toString()).isEqualTo("1");
     assertThat(
@@ -192,18 +193,24 @@ class MultiCommunityIntegrationTest {
   }
 
   @Test
-  void adminNoticeRetainsWorkerResponsibility() {
-    long id = elder(admin, 2L);
+  void adminCannotCreateNoticeAndWorkerRetainsResponsibility() {
+    long id = elder(worker, null);
+    assertThatThrownBy(
+            () ->
+                notices.create(
+                    admin,
+                    new NoticeService.Draft("OTHER", "越权代办", "管理员不能代办", Set.of(id), null, "multi")))
+        .isInstanceOf(Problem.class);
     long n =
         ((Number)
                 ((Map<?, ?>)
                         notices.create(
-                            admin,
+                            worker,
                             new NoticeService.Draft(
                                 "OTHER", "管理员通知", "测试内容", Set.of(id), null, "multi")))
                     .get("id"))
             .longValue();
-    notices.activate(admin, n, 0);
+    notices.activate(worker, n, 0);
     assertThat(
             db.one("SELECT owner_at_issue FROM notice_recipient WHERE notice_id=:id", Db.p("id", n))
                 .get("owner_at_issue")
@@ -218,7 +225,7 @@ class MultiCommunityIntegrationTest {
     var q = new ReportService.Query("2026-10", null, null, null, 1L);
     var before = reports.metrics(stat, q).get("metrics");
     var sourceAdmin = auth.worker(1, 1);
-    notices.cancel(sourceAdmin, 1, new NoticeService.Reason(0, "历史口径验证移交前取消"));
+    notices.cancel(auth.worker(2, 1), 1, new NoticeService.Reason(0, "历史口径验证移交前取消"));
     elders.transfer(sourceAdmin, 1, new ElderService.Transfer(0, grid, 2L, "历史口径验证", community));
     assertThat(reports.metrics(stat, q).get("metrics")).isEqualTo(before);
   }

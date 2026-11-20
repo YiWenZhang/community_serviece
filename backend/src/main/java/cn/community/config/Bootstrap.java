@@ -23,9 +23,9 @@ public class Bootstrap implements ApplicationRunner {
   @Transactional
   public void run(ApplicationArguments args) {
     Problem.require(
-        db.count("SELECT COUNT(*) FROM app_schema_version WHERE version=3", java.util.Map.of())
+        db.count("SELECT COUNT(*) FROM app_schema_version WHERE version=4", java.util.Map.of())
             == 1,
-        "请先升级V003加密资料结构，或使用新版重建四社区数据脚本，再启动v1.5.0");
+        "请先升级V004业务闭环结构，或使用新版重建四社区数据脚本，再启动v1.6.0");
     db.update(
         "UPDATE sys_user SET password_hash=:hash,status='ACTIVE',version=version+1 WHERE"
             + " username='admin_demo' AND status='DISABLED' AND"

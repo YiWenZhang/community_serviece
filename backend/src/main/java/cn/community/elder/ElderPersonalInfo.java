@@ -15,7 +15,18 @@ public class ElderPersonalInfo {
       @Size(max = 200) String address,
       @Size(max = 40) String familyName,
       @Size(max = 24) String familyRelation,
-      @Size(max = 24) String familyPhone) {}
+      @Size(max = 24) String familyPhone,
+      Boolean familySmsAllowed) {
+    public Info(
+        String name,
+        String phone,
+        String address,
+        String familyName,
+        String familyRelation,
+        String familyPhone) {
+      this(name, phone, address, familyName, familyRelation, familyPhone, false);
+    }
+  }
 
   private final Crypto crypto;
   private final Json json;
@@ -35,7 +46,13 @@ public class ElderPersonalInfo {
         relation = clean(input.familyRelation(), 24);
     Problem.require(!name.isBlank(), "请填写老人姓名");
     return new Info(
-        name, phone(input.phone()), address, family, relation, phone(input.familyPhone()));
+        name,
+        phone(input.phone()),
+        address,
+        family,
+        relation,
+        phone(input.familyPhone()),
+        Boolean.TRUE.equals(input.familySmsAllowed()));
   }
 
   private String clean(String value, int max) {
@@ -68,21 +85,24 @@ public class ElderPersonalInfo {
   }
 
   public Map<String, Object> read(Object cipher) {
-    return cipher instanceof byte[] bytes
-        ? json.map(crypto.decrypt(bytes))
-        : Db.p(
-            "name",
-            "",
-            "phone",
-            "",
-            "address",
-            "",
-            "familyName",
-            "",
-            "familyRelation",
-            "",
-            "familyPhone",
-            "");
+    var result =
+        cipher instanceof byte[] bytes
+            ? json.map(crypto.decrypt(bytes))
+            : Db.p(
+                "name",
+                "",
+                "phone",
+                "",
+                "address",
+                "",
+                "familyName",
+                "",
+                "familyRelation",
+                "",
+                "familyPhone",
+                "");
+    result.putIfAbsent("familySmsAllowed", false);
+    return result;
   }
 
   public byte[] searchHash(String field, String value) {

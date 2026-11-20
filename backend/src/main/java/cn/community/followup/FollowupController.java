@@ -61,25 +61,79 @@ public class FollowupController {
       @RequestParam(defaultValue = "1") int page,
       @RequestParam(defaultValue = "20") int pageSize,
       @RequestParam(required = false) String status,
-      @RequestParam(defaultValue = "false") boolean overdue) {
+      @RequestParam(defaultValue = "false") boolean overdue,
+      @RequestParam(required = false) Long recipientId,
+      @RequestParam(required = false) String noticeType,
+      @RequestParam(required = false) Long ownerId,
+      @RequestParam(required = false) String taskType,
+      @RequestParam(defaultValue = "ALL") String deadline) {
     var a = auth.require("followup:read");
     var p = a.scope();
     String where =
         " FROM followup_task t JOIN notice_recipient r ON r.id=t.recipient_id JOIN elder_profile e"
-            + " ON e.id=r.elder_id WHERE t.community_id=:community AND (e.owner_user_id=:actor OR "
+            + " ON e.id=r.elder_id JOIN notice n ON n.id=r.notice_id WHERE"
+            + " t.community_id=:community AND (e.owner_user_id=:actor OR "
             + a.admin()
             + ")";
-    if (status != null) {
-      where += " AND t.status=:status";
-      p.put("status", status);
+    if (ownerId != null) {
+      where += " AND t.assignee_id=:owner";
+      p.put("owner", ownerId);
     }
+    if (taskType != null) {
+      Problem.require(
+          Set.of("RECONTACT", "VERIFY_APPOINTMENT", "PRE_VACCINE_REMINDER").contains(taskType),
+          "跟进类型无效");
+      where += " AND t.task_type=:taskType";
+      p.put("taskType", taskType);
+    }
+    if (recipientId != null) {
+      where += " AND r.id=:rid";
+      p.put("rid", recipientId);
+    }
+    if (noticeType != null) {
+      Problem.require(
+          Set.of("BIRTHDAY", "VACCINE", "LECTURE", "OTHER").contains(noticeType), "业务类型无效");
+      where += " AND n.type=:type";
+      p.put("type", noticeType);
+    }
+    if (status != null) {
+      Problem.require(
+          Set.of("OPEN", "PENDING", "PROCESSING", "COMPLETED", "CANCELLED").contains(status),
+          "跟进状态无效");
+      if (status.equals("OPEN")) where += " AND t.status IN ('PENDING','PROCESSING')";
+      else {
+        where += " AND t.status=:status";
+        p.put("status", status);
+      }
+    }
+    Problem.require(Set.of("ALL", "OVERDUE", "TODAY", "NEXT7").contains(deadline), "期限范围无效");
+    if (deadline.equals("OVERDUE")) overdue = true;
     if (overdue) where += " AND t.status IN ('PENDING','PROCESSING') AND t.due_at<UTC_TIMESTAMP(3)";
+    if (deadline.equals("TODAY") || deadline.equals("NEXT7")) {
+      var today = LocalDate.now(ZoneId.of("Asia/Shanghai"));
+      p.put(
+          "start",
+          today
+              .atStartOfDay(ZoneId.of("Asia/Shanghai"))
+              .withZoneSameInstant(ZoneOffset.UTC)
+              .toLocalDateTime());
+      p.put(
+          "end",
+          today
+              .plusDays(deadline.equals("TODAY") ? 1 : 7)
+              .atStartOfDay(ZoneId.of("Asia/Shanghai"))
+              .withZoneSameInstant(ZoneOffset.UTC)
+              .toLocalDateTime());
+      where += " AND t.due_at>=:start AND t.due_at<:end";
+    }
     var result =
         db.page(
-            "SELECT t.*,e.elder_no_cipher,e.personal_info_cipher,IF(t.status IN"
-                + " ('PENDING','PROCESSING') AND t.due_at<UTC_TIMESTAMP(3),1,0) AS overdue"
+            "SELECT t.*,n.title AS notice_title,n.type AS"
+                + " notice_type,e.elder_no_cipher,e.personal_info_cipher,r.service_due_date,(SELECT"
+                + " display_name FROM sys_user WHERE id=t.assignee_id) AS assignee_name,IF(t.status"
+                + " IN ('PENDING','PROCESSING') AND t.due_at<UTC_TIMESTAMP(3),1,0) AS overdue"
                 + where
-                + " ORDER BY t.due_at,t.id",
+                + " ORDER BY IF(t.status IN ('PENDING','PROCESSING'),0,1),t.due_at,t.id",
             "SELECT COUNT(*)" + where,
             p,
             page,
@@ -98,6 +152,13 @@ public class FollowupController {
     var person = notices.recipient(a, Db.id(t, "recipient_id"), false);
     t.put("elderName", person.get("elderName"));
     t.put("elderNo", person.get("elderNo"));
+    t.put("noticeTitle", person.get("notice_title"));
+    t.put("noticeType", person.get("notice_type"));
+    t.put("elderId", person.get("elder_id"));
+    t.put(
+        "assigneeName",
+        db.one("SELECT display_name FROM sys_user WHERE id=:id", Db.p("id", t.get("assignee_id")))
+            .get("display_name"));
     t.put(
         "records",
         db.list(
@@ -232,6 +293,16 @@ public class FollowupController {
           attemptId,
           (int) Db.id(t, "retry_no") + 1,
           b.nextDueAt().withOffsetSameInstant(ZoneOffset.UTC).toLocalDateTime());
+      db.update(
+          "UPDATE followup_task SET due_at=:due,retry_no=:retry,version=version+1 WHERE"
+              + " open_dedupe_key=:key AND status IN ('PENDING','PROCESSING')",
+          Db.p(
+              "due",
+              b.nextDueAt().withOffsetSameInstant(ZoneOffset.UTC).toLocalDateTime(),
+              "retry",
+              Db.id(t, "retry_no") + 1,
+              "key",
+              "recipient:" + recipientId + ":" + t.get("task_type")));
     }
     if (b.outcome().equals("NO_LONGER_APPLICABLE")) {
       String reason = Db.id(t, "retry_no") >= 3 ? "RETRY_EXHAUSTED" : "NO_LONGER_APPLICABLE";

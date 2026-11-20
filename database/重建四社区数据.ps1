@@ -15,11 +15,11 @@ $ErrorActionPreference = 'Stop'
 $OutputEncoding = [Console]::OutputEncoding
 Import-Module (Join-Path $PSHOME 'Modules/Microsoft.PowerShell.Security/Microsoft.PowerShell.Security.psd1') -ErrorAction Stop
 $taskRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
-$taskJar = Join-Path $taskRoot 'backend/target/community-service-1.5.0.jar'
+$taskJar = Join-Path $taskRoot 'backend/target/community-service-1.6.0.jar'
 if ($MySqlHost -notin @('127.0.0.1','localhost') -or $Database -notmatch '^community_elder_service(?:_[a-z0-9_]+_(?:test|regression))?$') { throw '仅支持本机项目数据库或明确命名的隔离测试库。' }
 if (-not $CheckOnly -and $ConfirmReset -ne $Database) { throw "此操作会清空项目数据。请显式提供 -ConfirmReset $Database；执行前自动备份，不会删除其他数据库。" }
 if ($RestartBackend -and ($Database -ne 'community_elder_service' -or $MySqlPort -ne 3306)) { throw '仅正式本机项目库可使用-RestartBackend。' }
-if (-not (Test-Path -LiteralPath $taskJar)) { throw '请先进入backend执行mvn package，生成1.5.0。' }
+if (-not (Test-Path -LiteralPath $taskJar)) { throw '请先进入backend执行mvn package，生成1.6.0。' }
 $taskDump = Join-Path (Split-Path $MySqlExe -Parent) 'mysqldump.exe'
 if (-not (Test-Path -LiteralPath $taskDump)) { throw "找不到备份程序：$taskDump" }
 if (-not $StoragePath) { $StoragePath = Join-Path $taskRoot 'backend/storage' }

@@ -21,12 +21,14 @@ public class JobController {
   private final Auth auth;
   private final RuleService rules;
   private final JobService jobs;
+  private final Audit audit;
 
-  public JobController(Db db, Auth auth, RuleService rules, JobService jobs) {
+  public JobController(Db db, Auth auth, RuleService rules, JobService jobs, Audit audit) {
     this.db = db;
     this.auth = auth;
     this.rules = rules;
     this.jobs = jobs;
+    this.audit = audit;
   }
 
   @GetMapping("/notice-rules")
@@ -64,6 +66,52 @@ public class JobController {
             "NOTICE_GENERATION",
             "manual:" + a.id() + ":" + key,
             Db.p("ruleId", b.ruleId(), "period", b.period())));
+  }
+
+  @PostMapping("/notice-rules/{id}/generate")
+  @Operation(summary = "管理员立即按本社区各负责人范围排队生成通知")
+  @org.springframework.transaction.annotation.Transactional
+  public Object generateCommunity(
+      @PathVariable long id,
+      @RequestHeader("Idempotency-Key") String key,
+      @Valid @RequestBody Generation b) {
+    var a = auth.require("notice:rule:manage");
+    NoticeService.validateKey(key);
+    Problem.require(b.ruleId() == id, "规则编号不一致");
+    db.one(
+        "SELECT id FROM notice_rule WHERE id=:id AND community_id=:community AND enabled=1",
+        a.parameters("id", id));
+    var users =
+        db.list(
+            "SELECT DISTINCT u.id FROM sys_user u JOIN sys_user_role ur ON ur.user_id=u.id JOIN"
+                + " sys_role r ON r.id=ur.role_id JOIN user_community m ON m.user_id=u.id WHERE"
+                + " m.community_id=:community AND m.status='ACTIVE' AND u.status='ACTIVE' AND"
+                + " r.code='GRID_WORKER' AND r.status='ACTIVE'",
+            a.scope());
+    var results = new java.util.ArrayList<Object>();
+    int skipped = 0;
+    for (var user : users) {
+      var actor = auth.worker(Db.id(user, "id"), a.communityId());
+      if (!actor.has("notice:create")) {
+        skipped++;
+        continue;
+      }
+      results.add(
+          jobs.enqueue(
+              actor,
+              "NOTICE_GENERATION",
+              "admin:" + a.id() + ":" + key + ":" + actor.id(),
+              Db.p("ruleId", id, "period", b.period())));
+    }
+    Problem.require(!results.isEmpty(), "当前社区没有具备通知创建权限的有效网格员");
+    audit.log(
+        a,
+        "NOTICE_GENERATION_QUEUED",
+        "NOTICE_RULE",
+        id,
+        java.util.Map.of("workers", results.size(), "period", b.period()));
+    return Api.ok(
+        Db.p("jobs", results, "queuedWorkers", results.size(), "skippedWorkers", skipped));
   }
 
   @GetMapping("/jobs/{id}")

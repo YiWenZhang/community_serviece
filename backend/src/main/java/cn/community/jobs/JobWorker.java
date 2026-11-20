@@ -3,6 +3,7 @@ package cn.community.jobs;
 import cn.community.common.*;
 import cn.community.identity.*;
 import cn.community.notice.RuleService;
+import cn.community.notice.SmsService;
 import cn.community.reporting.ReportService;
 import java.time.*;
 import java.util.*;
@@ -21,6 +22,7 @@ public class JobWorker {
   private final RuleService rules;
   private final ReportService reports;
   private final JobService jobs;
+  private final SmsService sms;
   private final boolean enabled;
   private final String process = UUID.randomUUID().toString();
 
@@ -32,6 +34,7 @@ public class JobWorker {
       RuleService rules,
       ReportService reports,
       JobService jobs,
+      SmsService sms,
       @Value("${app.scheduler-enabled}") boolean enabled) {
     this.db = db;
     this.json = json;
@@ -40,6 +43,7 @@ public class JobWorker {
     this.rules = rules;
     this.reports = reports;
     this.jobs = jobs;
+    this.sms = sms;
     this.enabled = enabled;
   }
 
@@ -82,6 +86,7 @@ public class JobWorker {
                 Long.parseLong(payload.get("ruleId").toString()),
                 payload.get("period").toString(),
                 job.get("business_key").toString());
+        case "SMS_DISPATCH" -> sms.dispatch(actor, Db.id(job, "id"), payload);
         case "REPORT_EXPORT" ->
             reports.export(actor, Long.parseLong(payload.get("reportId").toString()));
         default -> throw new Problem(501, "该外部作业类型尚未接入");
@@ -136,8 +141,10 @@ public class JobWorker {
                   .getOrDefault(
                       "leadDays", config.getOrDefault("prepare_days_before_next_month", 7))
                   .toString());
-      YearMonth month = YearMonth.from(today.plusDays(lead));
-      String period = month.toString();
+      var periods = new LinkedHashSet<String>();
+      periods.add(YearMonth.from(today).toString());
+      if ("BIRTHDAY".equals(rule.get("notice_type")))
+        periods.add(YearMonth.from(today.plusDays(lead)).toString());
       for (var user :
           db.list(
               "SELECT DISTINCT u.id FROM sys_user u JOIN sys_user_role ur ON ur.user_id=u.id JOIN"
@@ -148,11 +155,12 @@ public class JobWorker {
         try {
           var actor = auth.worker(Db.id(user, "id"), Db.id(rule, "community_id"));
           actor.require("notice:create");
-          jobs.enqueue(
-              actor,
-              "NOTICE_GENERATION",
-              "auto:" + rule.get("id") + ":" + today + ":" + actor.id(),
-              Db.p("ruleId", rule.get("id"), "period", period));
+          for (String period : periods)
+            jobs.enqueue(
+                actor,
+                "NOTICE_GENERATION",
+                "auto:" + rule.get("id") + ":" + today + ":" + period + ":" + actor.id(),
+                Db.p("ruleId", rule.get("id"), "period", period));
         } catch (Problem ignored) {
           /*账号停用或权限撤销后不再派发。*/
         }
@@ -160,7 +168,8 @@ public class JobWorker {
     }
   }
 
-  @Scheduled(cron = "0 30 1 1 * *", zone = "Asia/Shanghai")
+  // Daily catch-up: the stable month key still creates one report per statistician per month.
+  @Scheduled(cron = "0 30 1 * * *", zone = "Asia/Shanghai")
   public void queueMonthlyReports() {
     if (!enabled) return;
     String month = YearMonth.now(ZoneId.of("Asia/Shanghai")).minusMonths(1).toString();

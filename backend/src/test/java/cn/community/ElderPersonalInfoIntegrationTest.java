@@ -38,7 +38,7 @@ class ElderPersonalInfoIntegrationTest {
     var admin = auth.worker(1, 1);
     var worker = auth.worker(2, 1);
     long id =
-        ((Number) ((Map<?, ?>) elders.create(admin, draft("宋江", "19900000001"))).get("id"))
+        ((Number) ((Map<?, ?>) elders.create(worker, draft("宋江", "19900000001"))).get("id"))
             .longValue();
     var raw = db.one("SELECT * FROM elder_profile WHERE id=:id", Db.p("id", id));
     assertThat(raw.get("personal_info_cipher")).isInstanceOf(byte[].class);

@@ -1,6 +1,6 @@
 FROM eclipse-temurin:21-jre
 WORKDIR /app
-COPY target/community-service-1.5.0.jar /app/community-service.jar
+COPY target/community-service-1.6.0.jar /app/community-service.jar
 RUN mkdir -p /data/community-service && chown 10001:10001 /data/community-service
 ENV SERVER_ADDRESS=0.0.0.0
 ENV APP_STORAGE=/data/community-service

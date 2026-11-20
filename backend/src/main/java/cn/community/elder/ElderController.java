@@ -24,7 +24,9 @@ public class ElderController {
       @RequestParam(required = false) String vaccinationStatus,
       @RequestParam(required = false) Long needId,
       @RequestParam(required = false) String name,
-      @RequestParam(required = false) String phone) {
+      @RequestParam(required = false) String phone,
+      @RequestParam(required = false) String birthFrom,
+      @RequestParam(required = false) String birthTo) {
     return Api.ok(
         service.list(
             auth.current(),
@@ -35,13 +37,22 @@ public class ElderController {
             vaccinationStatus,
             needId,
             name,
-            phone));
+            phone,
+            birthFrom,
+            birthTo));
   }
 
   @GetMapping("/{id}")
   @Operation(summary = "本人档案详情及需求疫苗信息")
   public Object detail(@PathVariable long id) {
     return Api.ok(service.detail(auth.current(), id));
+  }
+
+  @GetMapping("/birthday-care")
+  @Operation(summary = "生日月份关怀名单，管理员可跨社区，网格员仅本人负责")
+  public Object birthdayCare(
+      @RequestParam(required = false) String month, @RequestParam(defaultValue = "1") int page) {
+    return Api.ok(service.birthdayCare(auth.current(), month, page));
   }
 
   @PostMapping

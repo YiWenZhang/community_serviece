@@ -2,7 +2,7 @@
 $ErrorActionPreference='Stop'
 $taskBackendPath=$PSScriptRoot
 Set-Location -LiteralPath $taskBackendPath
-$taskJar=Join-Path $taskBackendPath 'target/community-service-1.5.0.jar'
+$taskJar=Join-Path $taskBackendPath 'target/community-service-1.6.0.jar'
 if(-not(Test-Path -LiteralPath $taskJar)) { throw '请先在backend目录执行 mvn clean package' }
 $taskKeys=Get-Content -LiteralPath (Join-Path $taskBackendPath '../database/演示数据密钥.json') -Raw -Encoding UTF8 | ConvertFrom-Json
 $env:APP_AES_KEY=$taskKeys.aes256_key_hex

@@ -37,18 +37,39 @@ const menuGroups = computed<MenuGroup[]>(() =>
       key: "workbench",
       label: "工作台",
       icon: House,
-      items: [{ to: "/", name: "服务工作台", icon: House, show: true }],
+      items: [
+        {
+          to: "/",
+          name: auth.user?.roles?.includes("ADMIN")
+            ? "工作监督"
+            : auth.can("notice:read")
+              ? "我的工作"
+              : "统计工作台",
+          icon: House,
+          show: true,
+        },
+      ],
     },
     {
       key: "business",
-      label: "业务服务",
+      label: auth.user?.roles?.includes("ADMIN") ? "业务监督" : "业务办理",
       icon: Finished,
       items: [
-        { to: "/elders", name: "老人档案", icon: User, show: auth.can("elder:read") },
-        { to: "/notices", name: "通知管理", icon: Bell, show: auth.can("notice:read") },
+        {
+          to: "/elders",
+          name: "老人档案",
+          icon: User,
+          show: auth.can("elder:read"),
+        },
+        {
+          to: "/notices",
+          name: auth.user?.roles?.includes("ADMIN") ? "通知进度" : "通知办理",
+          icon: Bell,
+          show: auth.can("notice:read"),
+        },
         {
           to: "/followups",
-          name: "服务跟进",
+          name: auth.user?.roles?.includes("ADMIN") ? "跟进进度" : "服务跟进",
           icon: Finished,
           show: auth.can("followup:read"),
         },
@@ -56,7 +77,8 @@ const menuGroups = computed<MenuGroup[]>(() =>
           to: "/reports",
           name: "统计报表",
           icon: DataAnalysis,
-          show: auth.can("report:read:own") || auth.can("report:read:community"),
+          show:
+            auth.can("report:read:own") || auth.can("report:read:community"),
         },
       ],
     },
@@ -65,7 +87,12 @@ const menuGroups = computed<MenuGroup[]>(() =>
       label: "政策智能",
       icon: ChatDotRound,
       items: [
-        { to: "/policy-chat", name: "政策问答助手", icon: ChatDotRound, show: auth.can("ai:chat") },
+        {
+          to: "/policy-chat",
+          name: "政策问答助手",
+          icon: ChatDotRound,
+          show: auth.can("ai:chat"),
+        },
         {
           to: "/knowledge",
           name: "政策知识库",
@@ -94,7 +121,20 @@ const menuGroups = computed<MenuGroup[]>(() =>
           icon: OfficeBuilding,
           show: auth.can("system:community:manage"),
         },
-        { to: "/audit-logs", name: "操作日志", icon: List, show: auth.can("audit:read") },
+        {
+          to: "/audit-logs",
+          name: "操作日志",
+          icon: List,
+          show: auth.can("audit:read"),
+        },
+        {
+          to: "/sms-settings",
+          name: "短信平台设置",
+          icon: Setting,
+          show:
+            auth.can("system:config:manage") &&
+            !!auth.user?.roles?.includes("ADMIN"),
+        },
         {
           to: "/users",
           name: "用户管理",
@@ -103,14 +143,17 @@ const menuGroups = computed<MenuGroup[]>(() =>
         },
         {
           to: "/rules",
-          name: "通知规则",
+          name: "自动规则配置",
           icon: Setting,
           show: auth.can("notice:rule:manage"),
         },
       ],
     },
   ]
-    .map((group) => ({ ...group, items: group.items.filter((item) => item.show) }))
+    .map((group) => ({
+      ...group,
+      items: group.items.filter((item) => item.show),
+    }))
     .filter((group) => group.items.length > 0),
 );
 const openGroups = ref<Record<string, boolean>>({});
@@ -131,6 +174,18 @@ const today = new Date().toLocaleDateString("zh-CN", {
   month: "long",
   day: "numeric",
   weekday: "long",
+});
+const pageTitle = computed(() => {
+  const admin = auth.user?.roles?.includes("ADMIN");
+  if (route.path === "/")
+    return admin
+      ? "工作监督"
+      : auth.can("notice:read")
+        ? "我的工作"
+        : "统计工作台";
+  if (route.path === "/notices") return admin ? "通知进度" : "通知办理";
+  if (route.path === "/followups") return admin ? "跟进进度" : "服务跟进";
+  return route.meta.title;
 });
 async function logout() {
   try {
@@ -172,7 +227,9 @@ onBeforeUnmount(() => window.removeEventListener("session-expired", expired));
               class="nav-group-head"
               :class="{
                 open: openGroups[group.key],
-                'has-active': group.items.some((item) => item.to === route.path),
+                'has-active': group.items.some(
+                  (item) => item.to === route.path,
+                ),
               }"
               :aria-expanded="openGroups[group.key]"
               @click="toggleGroup(group.key)"
@@ -205,7 +262,7 @@ onBeforeUnmount(() => window.removeEventListener("session-expired", expired));
       <div class="main-layout">
         <header class="topbar">
           <div class="breadcrumb">
-            社区工作空间 <span>/</span> <strong>{{ route.meta.title }}</strong>
+            社区工作空间 <span>/</span> <strong>{{ pageTitle }}</strong>
           </div>
           <div class="topbar-right">
             <el-select

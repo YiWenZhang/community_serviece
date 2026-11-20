@@ -102,6 +102,36 @@ public class ElderService {
     return personal.reference(row);
   }
 
+  public Object birthdayCare(Actor a, String month, int page) {
+    a.require("elder:read");
+    YearMonth period =
+        month == null ? YearMonth.now(ZoneId.of("Asia/Shanghai")) : YearMonth.parse(month);
+    var p = Db.p("community", a.communityId(), "actor", a.id(), "month", period.getMonthValue());
+    String from =
+        " FROM elder_profile e JOIN community c ON c.id=e.community_id JOIN sys_user u ON"
+            + " u.id=e.owner_user_id WHERE e.status='ACTIVE' AND c.status='ACTIVE' AND"
+            + " e.birth_month=:month AND "
+            + (a.admin() ? "TRUE" : "e.community_id=:community AND e.owner_user_id=:actor");
+    var result =
+        db.page(
+            "SELECT e.id,e.community_id,c.name AS community_name,e.owner_user_id,u.display_name AS"
+                + " owner_name,e.birth_year,e.birth_month,e.elder_no_cipher,e.personal_info_cipher,EXISTS(SELECT"
+                + " 1 FROM elder_service_need n JOIN service_need d ON d.id=n.need_id WHERE"
+                + " n.elder_id=e.id AND n.status='ACTIVE' AND d.code='BIRTHDAY_CARE') AS"
+                + " care_enrolled"
+                + from
+                + " ORDER BY e.community_id,e.id",
+            "SELECT COUNT(*)" + from,
+            p,
+            page,
+            20);
+    @SuppressWarnings("unchecked")
+    var items = (List<Map<String, Object>>) result.get("items");
+    result.put("items", items.stream().map(this::reference).toList());
+    result.put("month", period.toString());
+    return result;
+  }
+
   public Map<String, Object> detail(Actor a, long id) {
     a.require("elder:read");
     var row = display(owned(a, id, false));
@@ -141,6 +171,21 @@ public class ElderService {
       Long needId,
       String name,
       String phone) {
+    return list(a, page, size, elderNo, month, vaccineStatus, needId, name, phone, null, null);
+  }
+
+  public Object list(
+      Actor a,
+      int page,
+      int size,
+      String elderNo,
+      Integer month,
+      String vaccineStatus,
+      Long needId,
+      String name,
+      String phone,
+      String birthFrom,
+      String birthTo) {
     a.require("elder:read");
     var p = a.scope();
     String where =
@@ -164,7 +209,19 @@ public class ElderService {
       where += " AND e.birth_month=:month";
       p.put("month", month);
     }
-    if (vaccineStatus != null) {
+    if (birthFrom != null && !birthFrom.isBlank()) {
+      var b = YearMonth.parse(birthFrom);
+      where += " AND (e.birth_year*12+e.birth_month)>=:birthFrom";
+      p.put("birthFrom", b.getYear() * 12 + b.getMonthValue());
+    }
+    if (birthTo != null && !birthTo.isBlank()) {
+      var b = YearMonth.parse(birthTo);
+      where += " AND (e.birth_year*12+e.birth_month)<=:birthTo";
+      p.put("birthTo", b.getYear() * 12 + b.getMonthValue());
+    }
+    if (birthFrom != null && birthTo != null && !birthFrom.isBlank() && !birthTo.isBlank())
+      Problem.require(!YearMonth.parse(birthFrom).isAfter(YearMonth.parse(birthTo)), "出生年月范围不正确");
+    if (vaccineStatus != null && !vaccineStatus.isBlank()) {
       where +=
           " AND EXISTS (SELECT 1 FROM elder_vaccine_status v WHERE v.elder_id=e.id AND"
               + " v.vaccination_status=:vs)";
@@ -178,10 +235,33 @@ public class ElderService {
     }
     var result =
         db.page(
-            "SELECT e.*" + where + " ORDER BY e.id DESC", "SELECT COUNT(*)" + where, p, page, size);
+            "SELECT e.*,(SELECT display_name FROM sys_user WHERE id=e.registered_by) AS"
+                + " registrar_name,(SELECT display_name FROM sys_user WHERE id=e.owner_user_id) AS"
+                + " owner_name"
+                + where
+                + " ORDER BY e.id DESC",
+            "SELECT COUNT(*)" + where,
+            p,
+            page,
+            size);
     @SuppressWarnings("unchecked")
     var rows = (List<Map<String, Object>>) result.get("items");
-    result.put("items", rows.stream().map(this::display).toList());
+    var profiles = rows.stream().map(this::display).toList();
+    if (!rows.isEmpty()) {
+      var statuses =
+          db.list(
+              "SELECT s.elder_id,c.name,s.vaccination_status,s.eligibility FROM"
+                  + " elder_vaccine_status s JOIN vaccine_campaign c ON c.id=s.campaign_id WHERE"
+                  + " s.elder_id IN (:ids) ORDER BY s.id",
+              Db.p("ids", rows.stream().map(r -> r.get("id")).toList()));
+      for (var profile : profiles)
+        profile.put(
+            "vaccineStatuses",
+            statuses.stream()
+                .filter(s -> s.get("elder_id").toString().equals(profile.get("id").toString()))
+                .toList());
+    }
+    result.put("items", profiles);
     return result;
   }
 

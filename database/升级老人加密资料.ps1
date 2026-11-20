@@ -4,8 +4,8 @@ $ErrorActionPreference='Stop'
 $OutputEncoding = [Console]::OutputEncoding
 Import-Module (Join-Path $PSHOME 'Modules/Microsoft.PowerShell.Security/Microsoft.PowerShell.Security.psd1')
 $taskRoot=(Resolve-Path (Join-Path $PSScriptRoot '..')).Path
-$taskJar=Join-Path $taskRoot 'backend/target/community-service-1.5.0.jar'
-if(-not(Test-Path -LiteralPath $taskJar)){throw '请先构建v1.5.0后端。'}
+$taskJar=Join-Path $taskRoot 'backend/target/community-service-1.6.0.jar'
+if(-not(Test-Path -LiteralPath $taskJar)){throw '请先构建v1.6.0后端。'}
 foreach($taskPort in @(8080,8443)) {
     $taskListener=Get-NetTCPConnection -LocalPort $taskPort -State Listen -ErrorAction SilentlyContinue
     if($taskListener) {

@@ -18,6 +18,7 @@ function channelChanged() {
   model.value.fileIds = [];
   uploadedName.value = "";
   model.value.familyNameMasked = null;
+  model.value.familyName = null;
   model.value.familyRelation = null;
   model.value.relayConfirmed = null;
 }
@@ -84,10 +85,10 @@ async function upload(event: Event) {
         placeholder="拒绝接收或其他原因时必填"
     /></el-form-item>
     <template v-if="model.channel === 'FAMILY_RELAY'"
-      ><el-form-item label="家属脱敏称谓"
+      ><el-form-item label="家属姓名（加密保存）"
         ><el-input
-          v-model="model.familyNameMasked"
-          placeholder="例如：张某"
+          v-model="model.familyName"
+          placeholder="填写实际转告家属的姓名或称呼"
           maxlength="40" /></el-form-item
       ><el-form-item label="与老人关系"
         ><el-input
@@ -100,7 +101,7 @@ async function upload(event: Event) {
         ></el-form-item
       ></template
     >
-    <el-form-item label="客观反馈原话" class="span-2"
+    <el-form-item label="客观反馈原话（确认或拒绝时必填）" class="span-2"
       ><el-input
         v-model="model.feedbackQuote"
         type="textarea"

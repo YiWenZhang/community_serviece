@@ -38,13 +38,13 @@ try {
     $taskSqlText = Get-Content -LiteralPath $taskSqlPath -Raw -Encoding UTF8
     $taskSqlText += "`n" + (Get-Content -LiteralPath (Join-Path $PSScriptRoot 'migrations/V002__multi_community.sql') -Raw -Encoding UTF8)
     $taskSqlText += "`n" + (Get-Content -LiteralPath (Join-Path $PSScriptRoot '../backend/src/main/resources/ai-schema.sql') -Raw -Encoding UTF8)
-    $taskSqlText += "`n" + (Get-Content -LiteralPath (Join-Path $PSScriptRoot 'migrations/V003__elder_personal_info_encryption.sql') -Raw -Encoding UTF8)
+    $taskSqlText += "`n" + (Get-Content -LiteralPath (Join-Path $PSScriptRoot 'migrations/V003__elder_personal_info_encryption.sql') -Raw -Encoding UTF8) + "`n" + (Get-Content -LiteralPath (Join-Path $PSScriptRoot 'migrations/V004__workflow_completion.sql') -Raw -Encoding UTF8)
     $taskSqlText | & $MySqlExe --no-defaults --protocol=TCP "--host=$MySqlHost" "--port=$MySqlPort" "--user=$MySqlUser" --password --default-character-set=utf8mb4 --connect-timeout=10
     if ($LASTEXITCODE -ne 0) { throw "MySQL导入失败，退出码$LASTEXITCODE；请保留窗口错误信息，不要反复重导。" }
     Save-ImportStatus 'SUCCESS' '41张表结构已就绪；请执行重建四社区数据.ps1安装完整初始资料与政策'
     Write-Host ''
     Write-Host '导入成功：community_elder_service' -ForegroundColor Green
-    Write-Host '下一步：先构建1.5.0后端，再运行 database/重建四社区数据.ps1 -ConfirmReset community_elder_service，安装四社区完整初始数据及政策。'
+    Write-Host '下一步：先构建1.6.0后端，再运行 database/重建四社区数据.ps1 -ConfirmReset community_elder_service，安装四社区完整初始数据及政策。'
     Write-Host 'DBeaver：MySQL / 127.0.0.1 / 3306 / 数据库community_elder_service / 当前数据库账号及密码。'
     Write-Host "进一步查看：$taskVerifyPath"
 } catch {

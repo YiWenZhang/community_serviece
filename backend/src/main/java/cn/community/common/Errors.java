@@ -19,6 +19,7 @@ public class Errors {
     MethodArgumentNotValidException.class,
     HttpMessageNotReadableException.class,
     IllegalArgumentException.class,
+    java.time.DateTimeException.class,
     org.springframework.web.bind.MissingRequestHeaderException.class,
     org.springframework.web.bind.MissingServletRequestParameterException.class,
     org.springframework.web.multipart.support.MissingServletRequestPartException.class,

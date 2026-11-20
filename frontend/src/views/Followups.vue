@@ -1,19 +1,15 @@
 <script setup lang="ts">
+import { useRoute } from "vue-router";
 import { computed, onMounted, reactive, ref } from "vue";
 import { ElMessage } from "element-plus";
-import {
-  Tickets,
-  Timer,
-  RefreshRight,
-  CircleCheckFilled,
-  WarningFilled,
-  ArrowUp,
-} from "@element-plus/icons-vue";
 import { useAuth } from "../stores";
 import { api, query, fail, date, label, idempotency, type Row } from "../api";
 import Status from "../components/Status.vue";
 import AttemptFields from "../components/AttemptFields.vue";
-import StatCard from "../components/StatCard.vue";
+import WorkContact from "../components/WorkContact.vue";
+import BusinessFilters from "../components/BusinessFilters.vue";
+import WorkMetrics from "../components/WorkMetrics.vue";
+const route = useRoute();
 const auth = useAuth(),
   rows = ref<Row[]>([]),
   page = ref(1),
@@ -21,7 +17,14 @@ const auth = useAuth(),
   loading = ref(false),
   error = ref(""),
   stats = ref<Row>({});
-const filters = reactive({ status: "PENDING", overdue: false });
+const filters = reactive({
+  status: "OPEN",
+  deadline: route.query.overdue === "true" ? "OVERDUE" : "ALL",
+  ownerId: String(route.query.ownerId || ""),
+  taskType: "",
+  recipientId: String(route.query.recipientId || ""),
+  noticeType: String(route.query.type || ""),
+});
 const open = ref(false),
   detailOpen = ref(false),
   detail = ref<Row>({}),
@@ -35,46 +38,89 @@ const form = reactive<Row>({
     nextDueAt: null,
   }),
   attempt = ref<Row>({});
+const admin = computed(() => auth.user?.roles?.includes("ADMIN"));
+const states = [
+  { code: "OPEN", name: "未完成" },
+  { code: "PENDING", name: "待处理" },
+  { code: "PROCESSING", name: "处理中" },
+  { code: "COMPLETED", name: "已完成" },
+  { code: "CANCELLED", name: "已取消" },
+  { code: "", name: "全部状态" },
+];
+function filterChanged() {
+  page.value = 1;
+  load();
+  loadStats();
+}
+function resetFilters() {
+  Object.assign(filters, {
+    status: "OPEN",
+    deadline: "ALL",
+    ownerId: "",
+    taskType: "",
+    noticeType: "",
+    recipientId: "",
+  });
+  filterChanged();
+}
+function nextStep(row: Row) {
+  if (row.status === "COMPLETED") return "本次跟进已完成，可查看执行记录";
+  if (row.status === "CANCELLED") return "任务已取消，可查看历史记录";
+  return row.taskType === "PRE_VACCINE_REMINDER"
+    ? "按约定日期再次通知，记录接种提醒结果"
+    : row.taskType === "VERIFY_APPOINTMENT"
+      ? "核实实际预约日期并更新老人档案"
+      : "再次上门或联系家属，确认接收情况";
+}
+let loadEpoch = 0,
+  statsEpoch = 0;
 async function load() {
+  const epoch = ++loadEpoch;
   loading.value = true;
   error.value = "";
   try {
     const r = await api(
       "/followups?" + query({ ...filters, page: page.value, pageSize: 20 }),
     );
+    if (epoch !== loadEpoch) return;
     rows.value = r.items;
     total.value = Number(r.total);
   } catch (e) {
-    error.value = (e as Error).message;
+    if (epoch === loadEpoch) error.value = (e as Error).message;
   } finally {
-    loading.value = false;
+    if (epoch === loadEpoch) loading.value = false;
   }
 }
 async function loadStats() {
+  const epoch = ++statsEpoch;
+  const scope = {
+    noticeType: filters.noticeType,
+    ownerId: filters.ownerId,
+    taskType: filters.taskType,
+    recipientId: filters.recipientId,
+  };
   try {
-    const [all, pending, processing, completed, overdue] = await Promise.all([
-      api("/followups?pageSize=1"),
-      api("/followups?status=PENDING&pageSize=1"),
-      api("/followups?status=PROCESSING&pageSize=1"),
-      api("/followups?status=COMPLETED&pageSize=1"),
-      api("/followups?overdue=true&pageSize=1"),
+    const [all, pending, completed, overdue] = await Promise.all([
+      api("/followups?" + query({ ...scope, pageSize: 1 })),
+      api("/followups?" + query({ ...scope, pageSize: 1, status: "OPEN" })),
+      api(
+        "/followups?" + query({ ...scope, pageSize: 1, status: "COMPLETED" }),
+      ),
+      api(
+        "/followups?" + query({ ...scope, pageSize: 1, deadline: "OVERDUE" }),
+      ),
     ]);
-    stats.value = {
-      total: Number(all.total),
-      pending: Number(pending.total),
-      processing: Number(processing.total),
-      completed: Number(completed.total),
-      overdue: Number(overdue.total),
-    };
+    if (epoch === statsEpoch)
+      stats.value = {
+        total: all.total,
+        pending: pending.total,
+        completed: completed.total,
+        overdue: overdue.total,
+      };
   } catch {
-    /* 统计卡片失败不阻断主列表 */
+    if (epoch === statsEpoch) stats.value = {};
   }
 }
-const completionRate = computed(() =>
-  stats.value.total
-    ? `${((stats.value.completed / stats.value.total) * 100).toFixed(1)}%`
-    : "—",
-);
 async function show(row: Row) {
   try {
     detail.value = await api(`/followups/${row.id}`);
@@ -87,6 +133,7 @@ async function execute(row: Row) {
   try {
     task.value = await api(`/followups/${row.id}`);
     const recipient = await api(`/notice-recipients/${task.value.recipientId}`);
+    task.value.elderId = recipient.elderId;
     Object.assign(form, {
       outcome: "RESOLVED",
       resultText: "",
@@ -155,6 +202,7 @@ async function save() {
     ElMessage.success("跟进结果已保存");
     open.value = false;
     await load();
+    await loadStats();
   } catch (e) {
     fail(e);
   } finally {
@@ -167,73 +215,69 @@ onMounted(async () => {
 });
 </script>
 <template>
-  <div class="page-heading">
+  <div class="page-heading business-heading">
     <div>
-      <h1>服务跟进</h1>
-      <p>及时回应未完成的服务，保留每一次跟进结果。</p>
+      <h1>{{ admin ? "跟进进度" : "服务跟进" }}</h1>
+      <p>
+        {{
+          admin
+            ? "查看各网格员的跟进完成情况及执行记录，优先检查逾期任务。"
+            : "按期限处理本人未完成跟进，记录结果后系统同步更新通知状态。"
+        }}
+      </p>
     </div>
-    <el-button @click="load">刷新任务</el-button>
   </div>
-  <section class="stat-tiles">
-    <StatCard
-      label="跟进任务总数"
-      :value="stats.total ?? '—'"
-      suffix="条"
-      :icon="Tickets"
-      tone="blue"
-      hint="全部跟进任务"
+  <section class="panel business-panel">
+    <BusinessFilters
+      :model="filters"
+      :statuses="states"
+      @change="filterChanged"
+      @reset="resetFilters"
+    >
+      <el-form-item label="跟进类型"
+        ><el-select
+          v-model="filters.taskType"
+          clearable
+          placeholder="全部类型"
+          @change="filterChanged"
+          ><el-option
+            v-for="t in [
+              'RECONTACT',
+              'VERIFY_APPOINTMENT',
+              'PRE_VACCINE_REMINDER',
+            ]"
+            :key="t"
+            :value="t"
+            :label="label(t)" /></el-select
+      ></el-form-item>
+      <el-form-item label="截止范围"
+        ><el-select v-model="filters.deadline" @change="filterChanged"
+          ><el-option label="全部期限" value="ALL" /><el-option
+            label="已逾期"
+            value="OVERDUE" /><el-option
+            label="今日到期"
+            value="TODAY" /><el-option
+            label="未来7天（含今日）"
+            value="NEXT7" /></el-select
+      ></el-form-item>
+    </BusinessFilters>
+    <WorkMetrics
+      :items="[
+        { label: '跟进任务', value: stats.total ?? '—' },
+        { label: '未完成', value: stats.pending ?? '—' },
+        { label: '已逾期', value: stats.overdue ?? '—', urgent: true },
+        { label: '已完成', value: stats.completed ?? '—' },
+      ]"
     />
-    <StatCard
-      label="待处理任务"
-      :value="stats.pending ?? '—'"
-      suffix="条"
-      :icon="Timer"
-      tone="gold"
-      :hint="stats.overdue ? `其中 ${stats.overdue} 项已逾期` : '暂无逾期任务'"
-      hint-tone="warn"
-      :hint-icon="WarningFilled"
-    />
-    <StatCard
-      label="处理中任务"
-      :value="stats.processing ?? '—'"
-      suffix="条"
-      :icon="RefreshRight"
-      tone="brand"
-      hint="正在跟进处理"
-    />
-    <StatCard
-      label="已完成任务"
-      :value="stats.completed ?? '—'"
-      suffix="条"
-      :icon="CircleCheckFilled"
-      tone="green"
-      :hint="`完成率 ${completionRate}`"
-      hint-tone="up"
-      :hint-icon="ArrowUp"
-    />
-  </section>
-  <section class="panel">
-    <div class="toolbar">
-      <el-select
-        v-model="filters.status"
-        clearable
-        placeholder="全部任务状态"
-        @change="
-          page = 1;
-          load();
+    <div v-if="filters.recipientId" class="list-scope">
+      <span>仅查看从联系清单进入的这位老人跟进记录</span
+      ><el-button
+        link
+        @click="
+          filters.recipientId = '';
+          filterChanged();
         "
-        ><el-option
-          v-for="v in ['PENDING', 'PROCESSING', 'COMPLETED', 'CANCELLED']"
-          :key="v"
-          :label="label(v)"
-          :value="v" /></el-select
-      ><el-checkbox
-        v-model="filters.overdue"
-        @change="
-          page = 1;
-          load();
-        "
-        >仅看逾期任务</el-checkbox
+        >清除对象筛选</el-button
       >
     </div>
     <el-alert
@@ -242,43 +286,80 @@ onMounted(async () => {
       type="error"
       :closable="false"
       class="mb"
-    /><el-table
+    />
+    <el-table
+      class="desktop-work-table"
       v-loading="loading"
       :data="rows"
       empty-text="暂无符合条件的跟进任务"
-      ><el-table-column prop="id" label="任务编号" width="90" /><el-table-column
-        prop="elderName"
-        label="老人姓名"
-        min-width="110"
-      /><el-table-column label="任务类型" min-width="125"
-        ><template #default="{ row }">{{
-          label(row.taskType)
-        }}</template></el-table-column
-      ><el-table-column label="截止时间" min-width="175"
+    >
+      <el-table-column label="通知事项" min-width="225"
         ><template #default="{ row }"
-          ><span :style="Number(row.overdue) ? 'color:#b16d50' : ''">{{
-            date(row.dueAt)
-          }}</span></template
+          ><strong class="work-title">{{ row.noticeTitle }}</strong
+          ><small class="work-subtitle"
+            >{{ label(row.noticeType) }} · {{ label(row.taskType) }}</small
+          ></template
         ></el-table-column
-      ><el-table-column label="状态" min-width="100"
+      >
+      <el-table-column label="服务对象" min-width="155"
         ><template #default="{ row }"
-          ><Status :value="row.status" /></template></el-table-column
-      ><el-table-column label="操作" min-width="210" class-name="actions-column"
+          ><strong>{{ row.elderName }}</strong
+          ><small class="work-subtitle">{{ row.elderNo }}</small></template
+        ></el-table-column
+      >
+      <el-table-column prop="assigneeName" label="负责人" min-width="100" />
+      <el-table-column label="工作状态" min-width="100"
+        ><template #default="{ row }"><Status :value="row.status" /></template
+      ></el-table-column>
+      <el-table-column label="下一步 / 截止时间" min-width="250"
         ><template #default="{ row }"
-          ><el-button link type="primary" @click="show(row)">历史记录</el-button
+          ><span>{{ nextStep(row) }}</span
+          ><small
+            class="work-subtitle"
+            :class="{ 'work-urgent': Number(row.overdue) > 0 }"
+            >{{ Number(row.overdue) > 0 ? "已逾期 · " : ""
+            }}{{ date(row.dueAt) }}</small
+          ></template
+        ></el-table-column
+      >
+      <el-table-column label="操作" min-width="215" fixed="right"
+        ><template #default="{ row }"
           ><el-button
             v-if="
               auth.can('followup:update') &&
               ['PENDING', 'PROCESSING'].includes(row.status)
             "
-            link
             type="primary"
             @click="execute(row)"
-            >处理</el-button
-          ></template
+            >记录跟进结果</el-button
+          ><el-button link @click="show(row)">查看记录</el-button></template
         ></el-table-column
-      ></el-table
-    >
+      >
+    </el-table>
+    <div class="mobile-work-list" v-loading="loading">
+      <article v-for="row in rows" :key="row.id">
+        <small>{{ label(row.noticeType) }} · {{ label(row.taskType) }}</small>
+        <h3>{{ row.noticeTitle }}</h3>
+        <p>{{ row.elderName }} · 负责人 {{ row.assigneeName }}</p>
+        <Status :value="row.status" />
+        <p>{{ nextStep(row) }}</p>
+        <p :class="{ 'work-urgent': Number(row.overdue) > 0 }">
+          {{ Number(row.overdue) > 0 ? "已逾期 · " : "" }}{{ date(row.dueAt) }}
+        </p>
+        <div>
+          <el-button
+            v-if="
+              auth.can('followup:update') &&
+              ['PENDING', 'PROCESSING'].includes(row.status)
+            "
+            type="primary"
+            @click="execute(row)"
+            >记录跟进结果</el-button
+          ><el-button @click="show(row)">查看记录</el-button>
+        </div>
+      </article>
+      <p v-if="!rows.length && !loading" class="hint">暂无符合条件的跟进任务</p>
+    </div>
     <div class="pager">
       <el-pagination
         v-model:current-page="page"
@@ -288,10 +369,14 @@ onMounted(async () => {
         @current-change="load"
       />
     </div>
+    <p class="table-note">
+      汇总按业务、负责人及跟进类型统计；工作状态和截止范围用于筛选下方任务。已完成记录保留执行历史。
+    </p>
   </section>
   <el-dialog v-model="open" title="记录本次跟进" width="720px" destroy-on-close
     ><p class="hint">
-      {{ task.elderName }} · 任务 #{{ task.id }} ·
+      {{ task.noticeTitle }} · {{ task.elderName }}（{{ task.elderNo }}） ·
+      经办人：{{ task.assigneeName }} ·
       {{
         label(task.taskType)
       }}。完成跟进需要填写实际结果，系统会同步维护通知状态。
@@ -302,7 +387,7 @@ onMounted(async () => {
       type="info"
       :closable="false"
       class="mb"
-    /><el-form label-position="top"
+    /><WorkContact :elder-id="task.elderId" /><el-form label-position="top"
       ><div class="form-grid">
         <el-form-item label="跟进结果"
           ><el-select v-model="form.outcome" @change="outcomeChanged"
@@ -347,8 +432,13 @@ onMounted(async () => {
     width="740px"
     destroy-on-close
     ><el-descriptions :column="2" border
-      ><el-descriptions-item label="任务编号">{{
-        detail.id
+      ><el-descriptions-item label="通知事项">{{
+        detail.noticeTitle
+      }}</el-descriptions-item
+      ><el-descriptions-item label="服务对象"
+        >{{ detail.elderName }}（{{ detail.elderNo }}）</el-descriptions-item
+      ><el-descriptions-item label="负责人">{{
+        detail.assigneeName
       }}</el-descriptions-item
       ><el-descriptions-item label="任务状态">{{
         label(detail.status)
@@ -366,7 +456,20 @@ onMounted(async () => {
           ><template #default="{ row }">{{
             date(row.performedAt)
           }}</template></el-table-column
-        ><el-table-column prop="resultText" label="执行结果" min-width="250"
-      /></el-table></div
-  ></el-dialog>
+        ><el-table-column label="处理结果" min-width="130"
+          ><template #default="{ row }">{{
+            label(row.outcome)
+          }}</template></el-table-column
+        ><el-table-column
+          prop="resultText"
+          label="执行说明"
+          min-width="250"
+        /><el-table-column label="下次期限" min-width="170"
+          ><template #default="{ row }">{{
+            row.nextDueAt ? date(row.nextDueAt) : "—"
+          }}</template></el-table-column
+        ></el-table
+      >
+    </div></el-dialog
+  >
 </template>

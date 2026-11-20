@@ -3,7 +3,7 @@
   "info": {
     "title": "社区老年服务业务微服务接口",
     "description": "含政策知识库、模型配置及RAG问答。先GET /api/v1/auth/csrf，再使用X-XSRF-TOKEN及Cookie登录。所有写请求要求CSRF，触达、跟进及异步作业要求Idempotency-Key。BIGINT及统计数量响应为字符串。",
-    "version": "1.5.0"
+    "version": "1.6.0"
   },
   "servers": [
     {
@@ -17,6 +17,54 @@
     }
   ],
   "paths": {
+    "/api/v1/sms/settings": {
+      "get": {
+        "tags": [
+          "sms-controller"
+        ],
+        "operationId": "settings",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "sms-controller"
+        ],
+        "operationId": "save",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Settings"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/roles/{id}/permissions": {
       "put": {
         "tags": [
@@ -642,6 +690,31 @@
               "format": "int32",
               "default": 20
             }
+          },
+          {
+            "name": "noticeType",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ownerId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
           }
         ],
         "responses": {
@@ -802,6 +875,134 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/Rule"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/notice-rules/{id}/generate": {
+      "post": {
+        "tags": [
+          "08 通知规则与异步作业"
+        ],
+        "summary": "管理员立即按本社区各负责人范围排队生成通知",
+        "operationId": "generateCommunity",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Generation"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/notice-recipients/{id}/sms": {
+      "get": {
+        "tags": [
+          "sms-controller"
+        ],
+        "operationId": "history",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "sms-controller"
+        ],
+        "operationId": "send",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Version"
               }
             }
           },
@@ -1039,6 +1240,49 @@
             "schema": {
               "type": "boolean",
               "default": false
+            }
+          },
+          {
+            "name": "recipientId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "noticeType",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ownerId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "taskType",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "deadline",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "ALL"
             }
           }
         ],
@@ -1299,6 +1543,22 @@
           },
           {
             "name": "phone",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "birthFrom",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "birthTo",
             "in": "query",
             "required": false,
             "schema": {
@@ -2154,6 +2414,67 @@
         }
       }
     },
+    "/api/v1/work/overview": {
+      "get": {
+        "tags": [
+          "04 工作监督"
+        ],
+        "summary": "管理员按网格员查看当前社区联系闭环与跟进完成情况",
+        "operationId": "overview",
+        "parameters": [
+          {
+            "name": "noticeType",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ownerId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/work/filters": {
+      "get": {
+        "tags": [
+          "04 工作监督"
+        ],
+        "summary": "当前社区可查看的负责人选项，网格员仅返回本人",
+        "operationId": "filters",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/roles": {
       "get": {
         "tags": [
@@ -2189,6 +2510,38 @@
             "required": true,
             "schema": {
               "$ref": "#/components/schemas/Query"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/reports/filters": {
+      "get": {
+        "tags": [
+          "07 统计与月报"
+        ],
+        "summary": "报表经办人与疫苗周期筛选字典，不返回老人明细",
+        "operationId": "filters_1",
+        "parameters": [
+          {
+            "name": "communityId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
             }
           }
         ],
@@ -2325,6 +2678,41 @@
             "required": false,
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "name": "noticeType",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "workState",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "ALL"
+            }
+          },
+          {
+            "name": "noticeId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "ownerId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
             }
           }
         ],
@@ -2477,7 +2865,7 @@
           "03 老人档案与接种核验"
         ],
         "summary": "本人档案接种和归属时间线",
-        "operationId": "history",
+        "operationId": "history_1",
         "parameters": [
           {
             "name": "id",
@@ -2486,6 +2874,47 @@
             "schema": {
               "type": "integer",
               "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/elders/birthday-care": {
+      "get": {
+        "tags": [
+          "03 老人档案与接种核验"
+        ],
+        "summary": "生日月份关怀名单，管理员可跨社区，网格员仅本人负责",
+        "operationId": "birthdayCare",
+        "parameters": [
+          {
+            "name": "month",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 1
             }
           }
         ],
@@ -2844,6 +3273,39 @@
   },
   "components": {
     "schemas": {
+      "Settings": {
+        "type": "object",
+        "properties": {
+          "version": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "endpoint": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 0
+          },
+          "apiKey": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 0
+          },
+          "signature": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 0
+          },
+          "templateId": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 0
+          }
+        }
+      },
       "RoleChange": {
         "type": "object",
         "properties": {
@@ -3143,6 +3605,14 @@
           "communityId": {
             "type": "integer",
             "format": "int64"
+          },
+          "startDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "endDate": {
+            "type": "string",
+            "format": "date"
           }
         },
         "required": [
@@ -3222,6 +3692,23 @@
           }
         }
       },
+      "Generation": {
+        "type": "object",
+        "properties": {
+          "ruleId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "period": {
+            "type": "string",
+            "pattern": "\\d{4}-(0[1-9]|1[0-2])"
+          }
+        },
+        "required": [
+          "period",
+          "ruleId"
+        ]
+      },
       "Feedback": {
         "type": "object",
         "properties": {
@@ -3300,29 +3787,17 @@
               "format": "int64"
             },
             "uniqueItems": true
+          },
+          "familyName": {
+            "type": "string",
+            "maxLength": 40,
+            "minLength": 0
           }
         },
         "required": [
           "channel",
           "fileIds",
           "result"
-        ]
-      },
-      "Generation": {
-        "type": "object",
-        "properties": {
-          "ruleId": {
-            "type": "integer",
-            "format": "int64"
-          },
-          "period": {
-            "type": "string",
-            "pattern": "\\d{4}-(0[1-9]|1[0-2])"
-          }
-        },
-        "required": [
-          "period",
-          "ruleId"
         ]
       },
       "NewTask": {
@@ -3461,6 +3936,9 @@
             "type": "string",
             "maxLength": 24,
             "minLength": 0
+          },
+          "familySmsAllowed": {
+            "type": "boolean"
           }
         },
         "required": [

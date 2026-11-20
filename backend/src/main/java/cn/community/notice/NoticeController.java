@@ -24,8 +24,12 @@ public class NoticeController {
   @GetMapping("/notices")
   @Operation(summary = "本人可见通知分页")
   public Object list(
-      @RequestParam(defaultValue = "1") int page, @RequestParam(defaultValue = "20") int pageSize) {
-    return Api.ok(notices.list(auth.current(), page, pageSize));
+      @RequestParam(defaultValue = "1") int page,
+      @RequestParam(defaultValue = "20") int pageSize,
+      @RequestParam(required = false) String noticeType,
+      @RequestParam(required = false) String status,
+      @RequestParam(required = false) Long ownerId) {
+    return Api.ok(notices.list(auth.current(), page, pageSize, noticeType, status, ownerId));
   }
 
   @GetMapping("/notices/{id}")
@@ -57,29 +61,21 @@ public class NoticeController {
   public Object recipients(
       @RequestParam(defaultValue = "1") int page,
       @RequestParam(defaultValue = "20") int pageSize,
-      @RequestParam(required = false) String receiptStatus) {
-    var a = auth.require("notice:read");
-    var p = a.scope();
-    String where =
-        " FROM notice_recipient r JOIN elder_profile e ON e.id=r.elder_id WHERE"
-            + " r.community_id=:community AND (e.owner_user_id=:actor OR "
-            + a.admin()
-            + ")";
-    if (receiptStatus != null) {
-      where += " AND r.receipt_status=:status";
-      p.put("status", receiptStatus);
-    }
-    var result =
-        db.page(
-            "SELECT r.*,e.elder_no_cipher,e.personal_info_cipher" + where + " ORDER BY r.id DESC",
-            "SELECT COUNT(*)" + where,
-            p,
+      @RequestParam(required = false) String receiptStatus,
+      @RequestParam(required = false) String noticeType,
+      @RequestParam(defaultValue = "ALL") String workState,
+      @RequestParam(required = false) Long noticeId,
+      @RequestParam(required = false) Long ownerId) {
+    return Api.ok(
+        notices.work(
+            auth.require("notice:read"),
             page,
-            pageSize);
-    @SuppressWarnings("unchecked")
-    var items = (java.util.List<java.util.Map<String, Object>>) result.get("items");
-    result.put("items", notices.references(items));
-    return Api.ok(result);
+            pageSize,
+            receiptStatus,
+            noticeType,
+            workState,
+            noticeId,
+            ownerId));
   }
 
   @GetMapping("/notice-recipients/{id}")
@@ -91,7 +87,7 @@ public class NoticeController {
         "attempts",
         db.list(
             "SELECT"
-                + " id,channel,attempted_at,result,unreachable_reason,reason_text,feedback_quote,family_name_masked,family_relation,relay_confirmed"
+                + " id,channel,attempted_at,result,unreachable_reason,reason_text,feedback_quote,family_name_masked,family_relation,relay_confirmed,family_name_cipher"
                 + " FROM delivery_attempt WHERE recipient_id=:id ORDER BY id",
             Db.p("id", id)));
     r.put(
@@ -114,6 +110,7 @@ public class NoticeController {
                   + " ORDER BY id",
               Db.p("id", attempt.get("id"))));
     }
+    r.put("attempts", notices.displayAttempts(attempts));
     return Api.ok(r);
   }
 
