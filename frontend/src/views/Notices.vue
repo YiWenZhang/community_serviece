@@ -400,7 +400,7 @@ onMounted(async () => {
       ><el-table-column label="服务状态" min-width="100"
         ><template #default="{ row }"
           ><Status :value="row.workflowStatus" /></template></el-table-column
-      ><el-table-column label="操作" min-width="240"
+      ><el-table-column label="操作" min-width="320" class-name="actions-column"
         ><template #default="{ row }"
           ><el-button link type="primary" @click="show(row, 'recipient')"
             >记录</el-button
@@ -448,7 +448,7 @@ onMounted(async () => {
       ><el-table-column label="状态" width="100"
         ><template #default="{ row }"
           ><Status :value="row.status" /></template></el-table-column
-      ><el-table-column label="操作" min-width="190"
+      ><el-table-column label="操作" min-width="250" class-name="actions-column"
         ><template #default="{ row }"
           ><el-button link type="primary" @click="show(row, 'batch')"
             >详情</el-button

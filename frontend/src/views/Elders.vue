@@ -443,7 +443,7 @@ async function saveTransfer() {
         ><template #default="{ row }">{{
           date(row.infoUpdatedAt)
         }}</template></el-table-column
-      ><el-table-column label="操作" min-width="190"
+      ><el-table-column label="操作" min-width="320" class-name="actions-column"
         ><template #default="{ row }"
           ><el-button link type="primary" @click="show(row)">详情</el-button
           ><el-button

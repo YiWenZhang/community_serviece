@@ -1,7 +1,17 @@
 <script setup lang="ts">
 import { computed, onMounted, onBeforeUnmount, ref } from "vue";
 import { ElMessage } from "element-plus";
-import { Download } from "@element-plus/icons-vue";
+import {
+  Download,
+  Bell,
+  CircleCheckFilled,
+  Star,
+  Tickets,
+  Timer,
+  DataAnalysis,
+  ArrowDown,
+  ArrowUp,
+} from "@element-plus/icons-vue";
 import {
   api,
   query,
@@ -15,6 +25,7 @@ import { useAuth } from "../stores";
 import Status from "../components/Status.vue";
 import BarChart from "../components/BarChart.vue";
 import DonutChart from "../components/DonutChart.vue";
+import StatCard from "../components/StatCard.vue";
 const auth = useAuth(),
   reportCommunity = ref(""),
   month = ref(new Date().toLocaleDateString("sv-SE").slice(0, 7)),
@@ -22,7 +33,8 @@ const auth = useAuth(),
   loading = ref(false),
   exporting = ref(false),
   error = ref(""),
-  exports = ref<Row[]>([]);
+  exports = ref<Row[]>([]),
+  detailsOpen = ref(false);
 let alive = true;
 const metricNames: Row = {
   NOTICE_COVERAGE: "通知覆盖率",
@@ -76,6 +88,24 @@ const channelData = computed<{ label: string; value: number }[]>(() =>
 );
 const channelTotal = computed(() =>
   channelData.value.reduce((sum, d) => sum + d.value, 0),
+);
+const coreCards = computed(() =>
+  [
+    { code: "NOTICE_COVERAGE", label: "通知覆盖率", tone: "brand", icon: Bell },
+    { code: "SERVICE_CLOSURE", label: "服务闭环率", tone: "green", icon: CircleCheckFilled },
+    { code: "SATISFACTION", label: "满意度", tone: "gold", icon: Star },
+    { code: "FEEDBACK_RATE", label: "反馈率", tone: "blue", icon: Tickets },
+    { code: "FOLLOWUP_ON_TIME", label: "按期完成率", tone: "brand", icon: Timer },
+  ].map((def) => {
+    const m = (data.value?.metrics || []).find(
+      (x: Row) => x.code === def.code && x.dimension === "ALL",
+    );
+    return {
+      ...def,
+      value: m?.value == null ? "—" : percent(m.value),
+      hint: m ? `分子 ${m.numerator} / 分母 ${m.denominator}` : "暂无有效样本",
+    };
+  }),
 );
 async function load() {
   if (!month.value) return;
@@ -177,8 +207,11 @@ onBeforeUnmount(() => {
         }}，保留每个指标的分子与分母。
       </p>
     </div>
+    <span v-if="data" class="report-update-tag"
+      ><el-icon><DataAnalysis /></el-icon> 快照已更新</span
+    >
   </div>
-  <section class="panel">
+  <section class="panel report-toolbar">
     <div class="toolbar">
       <el-select
         v-if="auth.can('report:read:community')"
@@ -213,11 +246,23 @@ onBeforeUnmount(() => {
         ></template
       >
     </div>
-    <p v-if="data" class="muted">
-      快照 {{ date(data.snapshotAt) }} · 口径 {{ data.metricVersion }} ·
-      比例按实际有效样本计算
-    </p>
+    <div v-if="data" class="report-meta">
+      <span>快照 {{ date(data.snapshotAt) }}</span>
+      <span>口径 {{ data.metricVersion }}</span>
+      <span>比例按实际有效样本计算</span>
+    </div>
     <el-alert v-if="error" :title="error" type="error" :closable="false" />
+  </section>
+  <section v-if="data" class="stat-tiles report-overview">
+    <StatCard
+      v-for="card in coreCards"
+      :key="card.code"
+      :label="card.label"
+      :value="card.value"
+      :icon="card.icon"
+      :tone="card.tone"
+      :hint="card.hint"
+    />
   </section>
   <section v-if="data" class="chart-grid">
     <article class="panel">
@@ -248,42 +293,55 @@ onBeforeUnmount(() => {
       </div>
     </article>
   </section>
-  <section v-loading="loading" class="metrics-grid">
-    <article
-      v-for="m in data?.metrics || []"
-      :key="m.code + m.dimension"
-      class="panel"
+  <div v-if="data" class="details-bar">
+    <el-button
+      class="details-toggle"
+      :icon="detailsOpen ? ArrowUp : ArrowDown"
+      @click="detailsOpen = !detailsOpen"
+      >{{ detailsOpen ? "收起指标明细" : "查看指标明细" }}</el-button
     >
-      <div class="muted">
-        {{ metricNames[m.code] || m.code }}
-        <small v-if="m.dimension !== 'ALL'"
-          >·
-          {{
+    <span class="details-count"
+      >共 {{ data.metrics?.length || 0 }} 项指标 · 含分子与分母</span
+    >
+  </div>
+  <el-collapse-transition>
+    <section v-show="detailsOpen" v-loading="loading" class="metrics-grid">
+      <article
+        v-for="(m, index) in data?.metrics || []"
+        :key="m.code + m.dimension"
+        class="metric-card"
+        :style="{ animationDelay: `${Math.min(Number(index), 12) * 0.04}s` }"
+      >
+        <div class="metric-card-head">
+          <span>{{ metricNames[m.code] || m.code }}</span>
+          <small v-if="m.dimension !== 'ALL'">{{
             dimensionNames[m.dimension] ||
             m.dimension.replace("CAMPAIGN:", "周期 ")
-          }}</small
-        >
-      </div>
-      <div class="metric-number">{{ percent(m.value) }}</div>
-      <el-progress
-        :percentage="
-          m.value == null
-            ? 0
-            : Math.min(100, Math.max(0, Number(m.value) * 100))
-        "
-        :show-text="false"
-        :stroke-width="5"
-        color="#8ca97a"
-      />
-      <p class="metric-denom">
-        分子 {{ m.numerator }} / 分母 {{ m.denominator }}
-      </p>
-    </article>
-  </section>
+          }}</small>
+          <el-icon v-else class="metric-card-icon"><DataAnalysis /></el-icon>
+        </div>
+        <div class="metric-number">{{ percent(m.value) }}</div>
+        <el-progress
+          class="metric-progress"
+          :percentage="
+            m.value == null
+              ? 0
+              : Math.min(100, Math.max(0, Number(m.value) * 100))
+          "
+          :show-text="false"
+          :stroke-width="8"
+          color="#5fc7b0"
+        />
+        <p class="metric-denom">
+          分子 <b>{{ m.numerator }}</b> <span>·</span> 分母 {{ m.denominator }}
+        </p>
+      </article>
+    </section>
+  </el-collapse-transition>
   <section class="panel report-list">
     <div class="panel-head">
       <div>
-        <h2>本次会话的导出</h2>
+        <h2><el-icon class="head-icon"><Download /></el-icon>本次会话的导出</h2>
         <p>生成完成后下载，刷新页面前请保存所需文件。</p>
       </div>
     </div>
@@ -298,7 +356,7 @@ onBeforeUnmount(() => {
         prop="error"
         label="提示"
         min-width="180"
-      /><el-table-column label="操作" min-width="145"
+      /><el-table-column label="操作" min-width="160" class-name="actions-column"
         ><template #default="{ row }"
           ><el-button
             v-if="row.status === 'COMPLETED'"

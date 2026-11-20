@@ -143,7 +143,7 @@ onMounted(async () => {
             >{{ Number(row.enabled) ? "已启用" : "未启用" }}</span
           ></template
         ></el-table-column
-      ><el-table-column label="操作" width="100"
+      ><el-table-column label="操作" width="120" class-name="actions-column"
         ><template #default="{ row }"
           ><el-button link type="primary" @click="edit(row)"
             >编辑</el-button

@@ -229,7 +229,7 @@ onBeforeUnmount(() => clearInterval(timer));
           }}</small></template
         ></el-table-column
       >
-      <el-table-column label="操作" width="270"
+      <el-table-column label="操作" width="340" class-name="actions-column"
         ><template #default="{ row }"
           ><el-button link type="primary" @click="inspect(row)"
             >查看解析</el-button

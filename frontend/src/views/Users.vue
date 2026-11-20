@@ -178,7 +178,7 @@ onMounted(async () => {
       ><el-table-column label="状态" width="110"
         ><template #default="{ row }"
           ><Status :value="row.status" /></template></el-table-column
-      ><el-table-column label="操作" min-width="170"
+      ><el-table-column label="操作" min-width="230" class-name="actions-column"
         ><template #default="{ row }"
           ><el-button link type="primary" @click="edit(row)">编辑</el-button
           ><el-button link type="warning" @click="resetPassword(row)"

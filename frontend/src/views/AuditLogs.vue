@@ -142,7 +142,7 @@ onMounted(load);
             }}</el-tag
           ></template
         ></el-table-column
-      ><el-table-column label="详情" width="90"
+      ><el-table-column label="详情" width="110" class-name="actions-column"
         ><template #default="{ row }"
           ><el-button link type="primary" @click="detail = row"
             >查看</el-button

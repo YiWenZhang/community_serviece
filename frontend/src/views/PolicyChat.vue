@@ -2,6 +2,7 @@
 import { nextTick, onMounted, ref } from "vue";
 import { ElMessageBox } from "element-plus";
 import { api, http, fail, type Row } from "../api";
+import AnswerRichText from "../components/AnswerRichText.vue";
 const status = ref<Row>({}),
   conversations = ref<Row[]>([]),
   current = ref<string | null>(null),
@@ -203,7 +204,7 @@ onMounted(load);
             <span class="assistant-badge">策</span>
             <div class="answer-body">
               <strong>政策助手</strong>
-              <p class="answer-text">{{ m.answer }}</p>
+              <AnswerRichText class="answer-text" :text="m.answer" />
               <div v-if="m.citations?.length" class="citation-list">
                 <small>政策原文依据 · 点击查看</small
                 ><button
@@ -332,8 +333,15 @@ onMounted(load);
   border-radius: 7px;
   margin-bottom: 5px;
 }
+.conversation-row {
+  transition: background 0.2s ease, box-shadow 0.2s ease;
+}
+.conversation-row:hover {
+  background: #f3f8f4;
+}
 .conversation-row.selected {
-  background: #e9f2ed;
+  background: linear-gradient(90deg, #e4f0e9, #eef5ef);
+  box-shadow: inset 3px 0 0 #3aa6a0;
 }
 .conversation-title {
   background: none;
@@ -386,15 +394,17 @@ onMounted(load);
   text-align: center;
 }
 .chat-symbol {
-  background: #e6efdb;
-  color: #37654c;
-  border-radius: 18px;
+  background: linear-gradient(135deg, #e8f3d9, #cfe4c2);
+  color: #2f6b4a;
+  border-radius: 20px;
   font-size: 28px;
   width: 64px;
   height: 64px;
   display: grid;
   place-items: center;
   margin: 0 auto 20px;
+  box-shadow: 0 8px 22px rgba(63, 120, 82, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8);
 }
 .chat-welcome p {
   color: #7a8b82;
@@ -408,13 +418,20 @@ onMounted(load);
 }
 .example-questions button {
   border: 1px solid #e0e9e1;
-  background: #fafcf9;
-  border-radius: 9px;
+  background: linear-gradient(135deg, #fbfdfa, #f4f8f2);
+  border-radius: 10px;
   padding: 16px;
   text-align: left;
   font-size: 13px;
   color: #426355;
   cursor: pointer;
+  box-shadow: 0 2px 10px rgba(40, 80, 60, 0.05);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+.example-questions button:hover:not(:disabled) {
+  transform: translateY(-2px);
+  border-color: #a8ccb7;
+  box-shadow: 0 8px 20px rgba(40, 80, 60, 0.1);
 }
 .example-questions button span {
   float: right;
@@ -449,14 +466,15 @@ onMounted(load);
   margin-bottom: 38px;
 }
 .assistant-badge {
-  background: #245e51;
+  background: linear-gradient(135deg, #3aa6a0, #22756a);
   color: white;
   font-size: 12px;
-  border-radius: 8px;
+  border-radius: 9px;
   height: 32px;
   min-width: 32px;
   display: grid;
   place-items: center;
+  box-shadow: 0 4px 12px rgba(34, 117, 106, 0.3);
 }
 .answer-body {
   min-width: 0;
@@ -465,7 +483,6 @@ onMounted(load);
 .answer-body > strong {
   font-size: 13px;
 }
-.answer-text,
 .source-original {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
@@ -473,7 +490,7 @@ onMounted(load);
   font-size: 14px;
 }
 .answer-text {
-  margin: 12px 0 18px;
+  white-space: normal;
 }
 .citation-list {
   display: grid;
@@ -481,16 +498,34 @@ onMounted(load);
   margin-bottom: 16px;
 }
 .citation-list > small {
-  color: #758b7d;
+  color: #5f7a68;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.citation-list > small::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 2px;
+  background: #679278;
 }
 .citation-card {
-  border: 1px solid #dce7df;
-  border-radius: 8px;
-  background: #f9fbf8;
+  border: 1px solid #e3ede1;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #fbfdfa, #f3f8f2);
   text-align: left;
-  padding: 13px 15px;
+  padding: 14px 16px;
   color: #345c4b;
   cursor: pointer;
+  box-shadow: 0 3px 12px rgba(40, 80, 60, 0.06);
+  transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+}
+.citation-card:hover {
+  transform: translateX(4px);
+  border-color: #a8ccb7;
+  box-shadow: 0 8px 20px rgba(40, 80, 60, 0.12);
 }
 .citation-card > div {
   display: flex;
@@ -499,6 +534,8 @@ onMounted(load);
 }
 .citation-card b {
   font-size: 13px;
+  color: #2a5244;
+  font-weight: 650;
 }
 .citation-card small {
   font-size: 11px;
@@ -508,8 +545,8 @@ onMounted(load);
 }
 .citation-card p {
   font-size: 12px;
-  line-height: 1.7;
-  color: #6c7e72;
+  line-height: 1.8;
+  color: #556b5c;
   margin: 0;
 }
 .chat-compose {
@@ -533,8 +570,11 @@ onMounted(load);
 .source-original {
   margin: 24px 0;
   padding: 20px;
-  background: #f3f7f2;
+  background: linear-gradient(135deg, #f7faf5, #eef4eb);
   border-left: 3px solid #679278;
+  border-radius: 0 10px 10px 0;
+  box-shadow: 0 3px 14px rgba(40, 80, 60, 0.06);
+  color: #3d5648;
 }
 @media (max-width: 1000px) {
   .policy-layout {
