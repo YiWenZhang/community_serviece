@@ -43,6 +43,7 @@ public class CommunityController {
   @Transactional
   public Object create(@Valid @RequestBody Draft b) {
     var a = auth.require("system:community:manage");
+    privacy.check(b.code());
     privacy.check(b.name());
     privacy.check(b.description());
     long id =
@@ -63,6 +64,7 @@ public class CommunityController {
   @Transactional
   public Object update(@PathVariable long id, @Valid @RequestBody Draft b) {
     var a = auth.require("system:community:manage");
+    privacy.check(b.code());
     privacy.check(b.name());
     privacy.check(b.description());
     if (b.status().equals("INACTIVE"))
@@ -128,9 +130,14 @@ public class CommunityController {
 
   @PostMapping(value = "/{id}/icon", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
   @Transactional
-  public Object icon(@PathVariable long id, @RequestPart MultipartFile file) throws Exception {
+  public Object icon(
+      @PathVariable long id,
+      @RequestPart MultipartFile file,
+      @RequestParam(defaultValue = "false") boolean redactionConfirmed)
+      throws Exception {
     var a = auth.require("system:community:manage");
     auth.inCommunity(a, id);
+    Problem.require(redactionConfirmed, "请先确认图标已经脱敏，不含身份证、家庭住址或原始手机号");
     Problem.require(!file.isEmpty() && file.getSize() <= 2 * 1024 * 1024, "图标须为2MB以内PNG或JPEG");
     BufferedImage source;
     try (var input = ImageIO.createImageInputStream(file.getInputStream())) {

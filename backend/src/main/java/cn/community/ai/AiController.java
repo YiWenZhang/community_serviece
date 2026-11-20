@@ -107,19 +107,14 @@ public class AiController {
       @RequestParam(defaultValue = "") String policyNo,
       @RequestParam(required = false) LocalDate effectiveDate,
       @RequestParam(required = false) LocalDate expiryDate,
-      @RequestParam(defaultValue = "false") boolean isDemo)
+      @RequestParam(defaultValue = "false") boolean isDemo,
+      @RequestParam(defaultValue = "false") boolean redactionConfirmed)
       throws Exception {
+    var a = auth.require("ai:knowledge:manage");
+    Problem.require(redactionConfirmed, "请先确认文件及附件已经脱敏，不含身份证号、家庭住址或原始手机号");
     return Api.ok(
         knowledge.upload(
-            auth.current(),
-            file,
-            title,
-            category,
-            issuer,
-            policyNo,
-            effectiveDate,
-            expiryDate,
-            isDemo));
+            a, file, title, category, issuer, policyNo, effectiveDate, expiryDate, isDemo));
   }
 
   @PostMapping("/documents/{id}/action")

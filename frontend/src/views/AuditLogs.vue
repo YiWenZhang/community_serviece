@@ -14,6 +14,7 @@ const names: Row = {
   USER_CHANGED: "变更账号与角色",
   USER_COMMUNITIES_CHANGED: "调整社区授权",
   ROLE_PERMISSIONS_CHANGED: "变更角色权限",
+  PASSWORD_CHANGED: "本人修改密码",
   PASSWORD_RESET: "重置应用密码",
   ELDER_CREATED: "登记老人",
   ELDER_CHANGED: "更新老人档案",

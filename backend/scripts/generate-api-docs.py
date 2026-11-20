@@ -55,9 +55,12 @@ description={
 'noticeType':'可选VACCINE、BIRTHDAY、LECTURE、OTHER',
 'format':'XLSX或DOCX',
 'query':'月报查询条件，结构见Query',
-'redactionConfirmed':'必须true，表示上传者已人工确认图片脱敏',
-'password':'应用账号密码，创建或重置12至72字符；不是MySQL密码',
+'redactionConfirmed':'上传前必须true，表示文档/图片已人工确认脱敏',
+'password':'应用登录密码；创建/管理员重置固定123456，可省略；不是MySQL密码',
 'username':'应用登录账号，不使用手机号',
+'currentPassword':'本人当前密码，修改前验证',
+'newPassword':'至少6个字符且最多72个UTF-8字节，显示强度；不强制12位',
+'confirmPassword':'必须与newPassword一致',
 'roleIds':'有效角色ID集合，管理员1、网格员2、统计员3为原样例ID',
 'permissionIds':'有效权限ID集合，不能移除管理员的用户及角色管理权限',
 'ruleId':'本社区已启用通知规则ID',
@@ -67,20 +70,21 @@ description={
 }
 
 lines=['# 社区老年服务业务微服务接口文档','',
-'版本1.0.0，基于实际运行服务导出的OpenAPI生成。服务不包含AI功能。',
+'版本'+doc['info']['version']+'，基于实际运行服务导出的OpenAPI生成。含多社区、AI政策问答及密码安全接口。'
+,'安全与启动详见[密码与安全检查说明](../../密码与安全检查说明.md)，权限范围详见[多社区权限接口](多社区权限接口.md)。',
 '','## 一 调用约定','',
-'默认服务地址`http://127.0.0.1:8080`，接口前缀`/api/v1`。请求和响应UTF-8，业务JSON请求使用`Content-Type: application/json`。所有接口当前成功状态为200；异步接口通过响应中的作业ID表示排队，不代表已经完成。',
+'默认HTTPS服务地址`https://127.0.0.1:8443`，接口前缀`/api/v1`。请求和响应UTF-8，业务JSON请求使用`Content-Type: application/json`。所有接口当前成功状态为200；异步接口通过响应中的作业ID表示排队，不代表已经完成。',
 '',
 '使用JSESSIONID Cookie保持会话。登录前先GET`/auth/csrf`，将响应data.token作为`X-XSRF-TOKEN`头用于登录。登录后重新GET一次csrf；每次POST、PUT、PATCH、DELETE均携带Cookie和该头。过期会话返回401。',
 '',
-'管理员的功能权限不自动代表拥有业务明细权限。数据范围由后端会话确定，不接受客户端提交communityId、createdBy、ownerAtIssue或数据库主键。网格员仅能操作本人当前负责档案，统计员仅能汇总与导出。越权对象404；缺少功能权限403。',
+'管理员可管理全部社区与老人；网格员仅操作获授权社区内本人负责档案，统计员仅能查看汇总与报表。X-Community-Id每次由后端验证；指定负责人、移交及统计筛选均按角色和社区核验，不信任客户端传参。越权对象404；缺少功能权限403。',
 '',
 '响应BIGINT主键、Long统计数量和total统一为字符串，避免JavaScript精度丢失；version、page、pageSize为整数，比例value为0到1的小数。SQL列名输出转换为camelCase。日期为YYYY-MM-DD，数据库时间为UTC，响应时间为ISO8601；展示请转上海时区。',
 '',
 '```json','{"data":{"id":"4","version":0},"traceId":"请求链路UUID"}','```','',
 '分页data为`{items,total,page,pageSize}`，page从1开始，pageSize默认为20、最大100。详情和列表不返回passwordHash、编号密文、HMAC摘要或外部联系人令牌。',
 '',
-'| 状态 | 含义 |','| --- | --- |','| 400 | JSON、字段格式或校验失败 |','| 401 | 未登录、会话失效、账号停用或登录失败 |','| 403 | 功能权限不足或CSRF无效 |','| 404 | 资源不存在或不在本人范围 |','| 409 | version冲突、唯一键或幂等内容冲突 |','| 422 | 状态、关联或业务条件不满足 |','| 500 | 未预期服务错误，仅返回脱敏信息 |','| 501 | 短信等真实外部集成未接入 |','',
+'| 状态 | 含义 |','| --- | --- |','| 400 | JSON、字段格式或校验失败 |','| 401 | 未登录、会话失效、账号停用或登录失败 |','| 403 | 功能权限不足或CSRF无效 |','| 404 | 资源不存在或不在本人范围 |','| 409 | version冲突、唯一键或幂等内容冲突 |','| 422 | 状态、关联或业务条件不满足 |','| 426 | HTTPS强制模式拒绝明文请求 |','| 429 | 当前密码验证暂时锁定 |','| 500 | 未预期服务错误，仅返回脱敏信息 |','| 501 | 短信等真实外部集成未接入 |','',
 '错误形式为`{code,message,traceId}`；Security过滤链拒绝时至少有code与message，并通过响应头`X-Trace-Id`提供链路编号。','',
 '## 二 权限与接口索引','',
 '原样例角色ADMIN、GRID_WORKER、STATISTICIAN；权限配置以数据库为准。系统参数及用户角色由管理员维护，老人及服务由网格员维护，社区汇总由统计员查看。修改用户密码、角色和状态后旧会话立即失效，需重新登录。','',
@@ -111,7 +115,7 @@ for n,(path,method,op) in enumerate(operations,1):
     if path=='/api/v1/auth/csrf':lines+=['无登录要求。返回data.headerName及data.token；请求参数不需要填写CsrfToken对象。','']
     elif path=='/api/v1/auth/login':lines+=['无登录要求，但要求CSRF。返回当前账号id、username、communityId、roles和permissions。连续错误达到阈值会暂时锁定；错误不区分账号不存在和密码错误。','']
     elif path.endswith('/content'):lines+=['成功返回文件二进制流和Content-Disposition，不使用data包装。尚未关联的附件仅上传者可读，关联后按当前负责人的业务权限读取，原上传者移交后失去读取权；报表需申请人且仍具有对应范围导出权限，过期文件不可下载。','']
-    elif path=='/api/v1/files' and method=='post':lines+=['multipart字段`file`，仅有效JPEG或PNG，最多20MB及2500万像素，后端重编码为PNG移除原元数据；返回id、TEMP和PENDING，不能直接用于确认凭证。','']
+    elif path=='/api/v1/files' and method=='post':lines+=['multipart字段`file`和`redactionConfirmed=true`，仅有效JPEG或PNG，最多20MB及2500万像素，后端重编码为PNG移除原元数据；返回id、TEMP和PENDING，不能直接用于确认凭证。','']
     elif path.endswith('/finalize'):lines+=['上传者明确确认脱敏后返回id与ACTIVE；不代表系统已自动识别所有隐私或接入第三方杀毒。','']
     elif path=='/api/v1/report-jobs' and method=='post':lines+=['返回data.reportJobId和data.jobId。轮询GET /jobs/{jobId}或GET /report-jobs/{reportJobId}，完成后用outputFileId下载。','']
     elif path=='/api/v1/notice-generations':lines+=['返回data.id作业编号；生成范围为当前网格员本人。规则需由管理员先启用。','']
@@ -133,9 +137,9 @@ for name,schema in sorted(schemas.items()):
 lines+=['## 五 核心调用示例','',
 '下列路径都相对于/api/v1；Cookie与CSRF省略展示但实际调用不可省略。样例ID以当前数据库查询为准，不要把文档中的ID当作永远固定。','',
 '### 首次启用网格员','',
-'管理员GET /users获得当前version。先POST /users/2/password设置应用密码，再PATCH /users/2启用；每次写入version都会递增，不能在两步里重复使用旧版本。','',
-'```json','{"version":0,"password":"请替换为自己设置的至少12字符密码"}','```','',
-'```json','{"version":1,"displayName":"演示网格员","status":"ACTIVE","roleIds":["2"]}','```','',
+'管理员GET /users获得当前version。按需POST /users/2/reset-password重置为123456，再PATCH /users/2启用；每次写入version都会递增，不能在两步里重复使用旧版本。','',
+'```json','{"version":0}','```','',
+'```json','{"version":1,"displayName":"演示网格员","status":"ACTIVE","roleIds":["2"],"communityIds":["1"]}','```','',
 '### 登记老人','',
 'POST /elders：','',
 '```json',json.dumps({'gridId':'1','sex':'FEMALE','birthMonth':'1950-06','remark':'虚构演示档案','needIds':['1','2']},ensure_ascii=False,indent=2),'```','',

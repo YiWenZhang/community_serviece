@@ -23,6 +23,13 @@ spring:
       pool:
         size: 4
 server:
+  forward-headers-strategy: none
+  ssl:
+    enabled: ${SERVER_SSL_ENABLED:false}
+    key-store: ${SERVER_SSL_KEY_STORE:}
+    key-store-type: PKCS12
+    key-store-password: ${SERVER_SSL_KEY_STORE_PASSWORD:}
+    key-alias: ${SERVER_SSL_KEY_ALIAS:community-local}
   port: ${SERVER_PORT:8080}
   address: ${SERVER_ADDRESS:127.0.0.1}
   servlet:
@@ -48,6 +55,7 @@ springdoc:
     csrf:
       enabled: true
 app:
+  require-https: ${APP_REQUIRE_HTTPS:false}
   ai:
     migrate: ${APP_AI_MIGRATE:true}
     initial-key: ${DEEPSEEK_API_KEY:}
@@ -56,5 +64,4 @@ app:
   key-version: 1
   storage: ${APP_STORAGE:./storage}
   scheduler-enabled: ${APP_SCHEDULER_ENABLED:true}
-  bootstrap-password: ${BOOTSTRAP_ADMIN_PASSWORD:}
   public-docs: ${APP_PUBLIC_DOCS:true}

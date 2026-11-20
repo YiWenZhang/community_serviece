@@ -19,6 +19,7 @@ const form = reactive<Row>({
   status: "ACTIVE",
   version: 0,
 });
+const redactionConfirmed = ref(false);
 async function load() {
   loading.value = true;
   try {
@@ -43,9 +44,13 @@ function edit(row?: Row) {
     },
   );
   icon.value = null;
+  redactionConfirmed.value = false;
   open.value = true;
 }
 async function save() {
+  if (saving.value) return;
+  if (icon.value && !redactionConfirmed.value)
+    return ElMessage.warning("请确认图标已脱敏");
   saving.value = true;
   try {
     const result = await api(
@@ -62,6 +67,7 @@ async function save() {
     if (icon.value) {
       const body = new FormData();
       body.append("file", icon.value);
+      body.append("redactionConfirmed", "true");
       await http.post(`/communities/${result.id}/icon`, body);
     }
     open.value = false;
@@ -153,7 +159,10 @@ onMounted(load);
           ><el-option value="ACTIVE" label="启用" /><el-option
             value="INACTIVE"
             label="停用" /></el-select></el-form-item></el-form
-    ><template #footer
+    ><el-checkbox v-if="icon" v-model="redactionConfirmed"
+      >确认图标已脱敏，不含身份证、家庭住址或原始手机号</el-checkbox
+    >
+    <template #footer
       ><el-button @click="open = false">取消</el-button
       ><el-button type="primary" :loading="saving" @click="save"
         >保存社区</el-button

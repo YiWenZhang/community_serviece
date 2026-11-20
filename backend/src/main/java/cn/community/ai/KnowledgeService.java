@@ -27,6 +27,7 @@ public class KnowledgeService {
   private final TransactionTemplate tx;
   private final Auth auth;
   private final Audit audit;
+  private final Privacy privacy;
   private final Path root;
   private volatile boolean ready = false;
   private final boolean enabled;
@@ -43,7 +44,8 @@ public class KnowledgeService {
       Auth auth,
       Audit audit,
       @Value("${app.storage}") String root,
-      @Value("${app.scheduler-enabled}") boolean enabled)
+      @Value("${app.scheduler-enabled}") boolean enabled,
+      Privacy privacy)
       throws IOException {
     this.db = db;
     this.json = json;
@@ -55,6 +57,7 @@ public class KnowledgeService {
     this.tx = tx;
     this.auth = auth;
     this.audit = audit;
+    this.privacy = privacy;
     this.root = Path.of(root, "policies").toAbsolutePath().normalize();
     this.enabled = enabled;
     Files.createDirectories(this.root);
@@ -130,6 +133,11 @@ public class KnowledgeService {
     Problem.require(name.length() <= 200, "文件名过长");
     byte[] bytes = file.getBytes();
     String text = parser.extract(name, bytes);
+    privacy.check(title);
+    privacy.check(issuer);
+    privacy.check(policyNo);
+    privacy.check(name);
+    privacy.check(text);
     parser.split(text);
     String hash = HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(bytes));
     String key = UUID.randomUUID() + ".bin";
@@ -258,12 +266,13 @@ public class KnowledgeService {
     if (row == null) return false;
     long id = Db.id(row, "id");
     try {
-      var actor = auth.worker(Db.id(row, "created_by"),Db.id(row,"community_id"));
+      var actor = auth.worker(Db.id(row, "created_by"), Db.id(row, "community_id"));
       actor.require("ai:knowledge:manage");
       var chat = models.chat(actor.communityId());
       var embed = models.active(actor.communityId(), "EMBEDDING");
       String space = embeddings.space(embed);
       var parts = parser.split(row.get("extracted_text").toString());
+      privacy.check(row.get("extracted_text").toString());
       List<Map<String, Object>> enriched = new ArrayList<>();
       for (int offset = 0; offset < parts.size(); offset += 4) {
         var batch = parts.subList(offset, Math.min(offset + 4, parts.size()));
@@ -290,6 +299,8 @@ public class KnowledgeService {
           if (!(value.get("keywords") instanceof List<?> words) || words.size() > 30)
             throw new Problem(502, "AI关键词格式不正确，请重新解析");
           String keywords = String.join(" ", words.stream().map(Object::toString).toList());
+          privacy.check(summary);
+          privacy.check(keywords);
           Problem.require(keywords.length() <= 1000, "AI关键词过长");
           float[] vector =
               embeddings.encode(embed, part.content() + "\n" + summary + "\n" + keywords);
@@ -333,7 +344,7 @@ public class KnowledgeService {
                     + " status='PROCESSING' FOR UPDATE",
                 Db.p("id", id, "token", token));
             // 长任务完成前再次检查权限；撤权后不能发布入库。
-            auth.worker(actor.id(),actor.communityId()).require("ai:knowledge:manage");
+            auth.worker(actor.id(), actor.communityId()).require("ai:knowledge:manage");
             db.update("DELETE FROM ai_chunk WHERE document_id=:id", Db.p("id", id));
             for (var f : enriched) {
               long chunkId = db.insert("ai_chunk", f);

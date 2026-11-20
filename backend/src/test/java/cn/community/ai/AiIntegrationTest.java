@@ -128,6 +128,48 @@ class AiIntegrationTest {
   }
 
   @Test
+  void sensitiveUploadAndQuestionAreRejectedBeforeStorageOrModelCall() throws Exception {
+    long before = db.count("SELECT COUNT(*) FROM ai_document", Map.of());
+    var file =
+        new MockMultipartFile(
+            "file",
+            "private.txt",
+            "text/plain",
+            "家属手机号138 0013 8000".getBytes(StandardCharsets.UTF_8));
+    assertThatThrownBy(
+            () -> knowledge.upload(admin, file, "政策", "OTHER", "", "", null, null, false))
+        .isInstanceOf(Problem.class);
+    assertThat(db.count("SELECT COUNT(*) FROM ai_document", Map.of())).isEqualTo(before);
+    long conversation = conversation();
+    assertThatThrownBy(
+            () ->
+                rag.ask(
+                    worker, conversation, "身份证11010119490101001X", UUID.randomUUID().toString()))
+        .isInstanceOf(Problem.class);
+    assertThat(
+            db.count(
+                "SELECT COUNT(*) FROM ai_message WHERE conversation_id=:id",
+                Db.p("id", conversation)))
+        .isZero();
+    verifyNoInteractions(client);
+  }
+
+  @Test
+  void sensitiveModelAnswerIsNotSaved() {
+    upload("private-output");
+    knowledge.processOne();
+    questionAnswer = "请联系13800138000。[1]";
+    long conversation = conversation();
+    assertThatThrownBy(() -> rag.ask(worker, conversation, "助餐申请材料", UUID.randomUUID().toString()))
+        .isInstanceOf(Problem.class);
+    assertThat(
+            db.count(
+                "SELECT COUNT(*) FROM ai_message WHERE conversation_id=:id",
+                Db.p("id", conversation)))
+        .isZero();
+  }
+
+  @Test
   void duplicateUploadRejectedAndRetrySuccessful() {
     long id = upload("duplicate");
     assertThatThrownBy(() -> upload("duplicate")).hasCauseInstanceOf(Problem.class);

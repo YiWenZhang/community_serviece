@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { onMounted, reactive, ref } from "vue";
 import { useRouter } from "vue-router";
-import { ElMessage } from "element-plus";
+import { ElMessage, ElMessageBox } from "element-plus";
 import { Plus } from "@element-plus/icons-vue";
 import { api, query, fail, type Row } from "../api";
 import { useAuth } from "../stores";
@@ -20,7 +20,6 @@ const auth = useAuth(),
 const form = reactive<Row>({
   username: "",
   displayName: "",
-  password: "",
   status: "ACTIVE",
   roleIds: [],
   communityIds: [],
@@ -43,7 +42,6 @@ function create() {
   Object.assign(form, {
     username: "",
     displayName: "",
-    password: "",
     status: "ACTIVE",
     roleIds: [],
     communityIds:
@@ -56,7 +54,6 @@ function edit(row: Row) {
   Object.assign(form, {
     username: row.username,
     displayName: row.displayName,
-    password: "",
     status: row.status,
     roleIds: [...(row.roleIds || [])],
     communityIds: [...(row.communityIds || [])],
@@ -69,25 +66,9 @@ async function save() {
   if (saving.value) return;
   if (!form.username || !form.displayName || !form.roleIds.length)
     return ElMessage.warning("请填写账号、显示名并选择角色");
-  if (
-    (!editing.value ||
-      (editing.value.status === "DISABLED" && form.status === "ACTIVE")) &&
-    !form.password
-  )
-    return ElMessage.warning("新账号或启用停用账号时，请设置应用密码");
-  if (form.password && (form.password.length < 12 || form.password.length > 72))
-    return ElMessage.warning("应用密码需 12 至 72 个字符");
   saving.value = true;
   try {
     if (editing.value) {
-      if (form.password) {
-        await api(`/users/${editing.value.id}/password`, "POST", {
-          version: editing.value.version,
-          password: form.password,
-        });
-        editing.value.version++;
-        form.password = "";
-      }
       await api(`/users/${editing.value.id}`, "PATCH", {
         version: editing.value.version,
         displayName: form.displayName,
@@ -97,7 +78,7 @@ async function save() {
       });
       if (editing.value.id === auth.user?.id) {
         open.value = false;
-        auth.user = null;
+        auth.clearSession();
         await router.push("/login");
         ElMessage.success("自己的账号权限已更新，请重新登录");
         return;
@@ -106,18 +87,35 @@ async function save() {
       await api("/users", "POST", {
         username: form.username,
         displayName: form.displayName,
-        password: form.password,
         roleIds: form.roleIds,
         communityIds: form.communityIds,
       });
     ElMessage.success("工作人员账号已保存");
-    form.password = "";
     open.value = false;
     await load();
   } catch (e) {
     fail(e);
   } finally {
     saving.value = false;
+  }
+}
+async function resetPassword(row: Row) {
+  try {
+    await ElMessageBox.confirm(
+      `将“${row.username}”的密码重置为123456？其所有旧登录会话将失效。`,
+      "重置应用密码",
+      { type: "warning", confirmButtonText: "确认重置" },
+    );
+    await api(`/users/${row.id}/reset-password`, "POST", {
+      version: row.version,
+    });
+    if (row.id === auth.user?.id) {
+      auth.clearSession();
+      await router.replace("/login");
+    } else await load();
+    ElMessage.success("密码已重置为123456，请通知用户自行修改");
+  } catch (e) {
+    if (e !== "cancel" && e !== "close") fail(e);
   }
 }
 onMounted(async () => {
@@ -142,7 +140,7 @@ onMounted(async () => {
     >
   </div>
   <el-alert
-    title="首次体验：编辑 grid_demo 与 stats_demo，设置应用密码并启用。网格员处理原示例档案，统计员查看社区汇总。"
+    title="新账号初始密码统一为123456（弱）。示例网格员、统计员需管理员启用；旧账号保留原密码，可单独重置。"
     type="info"
     :closable="false"
     show-icon
@@ -182,8 +180,9 @@ onMounted(async () => {
           ><Status :value="row.status" /></template></el-table-column
       ><el-table-column label="操作" min-width="170"
         ><template #default="{ row }"
-          ><el-button link type="primary" @click="edit(row)"
-            >编辑 / 设置密码</el-button
+          ><el-button link type="primary" @click="edit(row)">编辑</el-button
+          ><el-button link type="warning" @click="resetPassword(row)"
+            >重置为123456</el-button
           ></template
         ></el-table-column
       ></el-table
@@ -203,10 +202,8 @@ onMounted(async () => {
     :title="editing ? '编辑工作人员' : '新增工作人员'"
     width="630px"
     destroy-on-close
-    @closed="form.password = ''"
     ><p class="hint">
-      应用密码与 MySQL
-      密码不同。修改用户密码、角色或状态后，该用户原会话会失效。管理员可管理全部社区的老人；网格员在分配社区内仍只操作本人负责的记录。统计员只查看汇总及报表。
+      应用初始密码为123456，与MySQL密码不同，用户可在右上角修改密码。修改用户密码、角色或状态后，该用户原会话会失效。管理员可管理全部社区的老人；网格员在分配社区内仍只操作本人负责的记录。统计员只查看汇总及报表。
     </p>
     <el-form label-position="top"
       ><div class="form-grid">
@@ -218,16 +215,6 @@ onMounted(async () => {
             autocomplete="off" /></el-form-item
         ><el-form-item label="显示名称 *"
           ><el-input v-model="form.displayName" maxlength="64" /></el-form-item
-        ><el-form-item
-          :label="editing ? '设置新应用密码（留空不改）' : '应用密码 *'"
-          class="span-2"
-          ><el-input
-            v-model="form.password"
-            type="password"
-            show-password
-            autocomplete="new-password"
-            placeholder="至少 12 个字符"
-            maxlength="72" /></el-form-item
         ><el-form-item v-if="editing" label="账号状态"
           ><el-select v-model="form.status"
             ><el-option value="ACTIVE" label="启用" /><el-option

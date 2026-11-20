@@ -17,6 +17,7 @@ public class RagService {
   private final VectorStore vectors;
   private final TransactionTemplate tx;
   private final Audit audit;
+  private final Privacy privacy;
 
   public RagService(
       Db db,
@@ -26,7 +27,8 @@ public class RagService {
       Embeddings embeddings,
       VectorStore vectors,
       TransactionTemplate tx,
-      Audit audit) {
+      Audit audit,
+      Privacy privacy) {
     this.db = db;
     this.json = json;
     this.models = models;
@@ -35,6 +37,7 @@ public class RagService {
     this.vectors = vectors;
     this.tx = tx;
     this.audit = audit;
+    this.privacy = privacy;
   }
 
   public Object status(Actor a) {
@@ -123,6 +126,7 @@ public class RagService {
 
   public Object ask(Actor a, long id, String question, String requestKey) {
     a.require("ai:chat");
+    privacy.check(question);
     String token = UUID.randomUUID().toString();
     var cached =
         tx.execute(
@@ -152,6 +156,10 @@ public class RagService {
                   + " LIMIT 3",
               Db.p("id", id));
       Collections.reverse(history);
+      for (var message : history) {
+        privacy.check(Objects.toString(message.get("question"), ""));
+        privacy.check(Objects.toString(message.get("answer"), ""));
+      }
       String query = question;
       if (!history.isEmpty()) query = history.getLast().get("question") + "\n" + question;
       var embed = models.active(a.communityId(), "EMBEDDING");
@@ -185,6 +193,9 @@ public class RagService {
                   Db.p("id", chunk, "community", a.communityId()));
           found.ifPresent(
               r -> {
+                privacy.check(Objects.toString(r.get("content"), ""));
+                for (String field : List.of("title", "issuer", "policy_no", "section"))
+                  privacy.check(Objects.toString(r.get(field), ""));
                 r.put("number", sources.size() + 1);
                 sources.add(r);
               });
@@ -214,6 +225,7 @@ public class RagService {
         if (!(value instanceof String text) || text.isBlank() || text.length() > 16000)
           throw new Problem(502, "模型答复格式无效，请重试");
         answer = text;
+        privacy.check(answer);
         if (!(result.get("insufficient") instanceof Boolean insufficient)
             || !(result.get("sourceIds") instanceof List<?> used))
           throw new Problem(502, "模型引用格式无效，请重试");

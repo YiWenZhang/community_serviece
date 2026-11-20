@@ -30,7 +30,7 @@ public class AdminController {
 
   public record UserCreate(
       @NotBlank @Pattern(regexp = "[a-zA-Z0-9_]{3,64}") String username,
-      @NotBlank @Size(min = 12, max = 72) String password,
+      @Size(max = 72) String password,
       @NotBlank @Size(max = 64) String displayName,
       @NotEmpty Set<Long> roleIds,
       Set<Long> communityIds) {
@@ -50,8 +50,7 @@ public class AdminController {
     }
   }
 
-  public record Password(
-      @Min(0) int version, @NotBlank @Size(min = 12, max = 72) String password) {}
+  public record Password(@Min(0) int version, @Size(max = 72) String password) {}
 
   public record RoleChange(@NotEmpty Set<Long> permissionIds) {}
 
@@ -97,8 +96,12 @@ public class AdminController {
   @Operation(summary = "创建本社区应用用户及角色")
   public Object create(@Valid @RequestBody UserCreate b) {
     var a = auth.require("system:user:manage");
+    privacy.check(b.username());
     privacy.check(b.displayName());
     validateRoles(b.roleIds());
+    Problem.require(
+        b.password() == null || b.password().isBlank() || Passwords.INITIAL.equals(b.password()),
+        "新账号初始密码统一为123456，用户登录后可自行修改");
     long id =
         db.insert(
             "sys_user",
@@ -108,7 +111,7 @@ public class AdminController {
                 "username",
                 b.username(),
                 "password_hash",
-                encoder.encode(b.password()),
+                encoder.encode(Passwords.INITIAL),
                 "display_name",
                 b.displayName(),
                 "status",
@@ -172,11 +175,14 @@ public class AdminController {
     return Api.ok(Map.of("id", id, "version", b.version() + 1));
   }
 
-  @PostMapping("/users/{id}/password")
+  @PostMapping({"/users/{id}/password", "/users/{id}/reset-password"})
   @Transactional
   @Operation(summary = "管理员重置应用用户密码，不涉及MySQL密码")
   public Object password(@PathVariable long id, @Valid @RequestBody Password b) {
     var a = auth.require("system:user:manage");
+    Problem.require(
+        b.password() == null || b.password().isBlank() || Passwords.INITIAL.equals(b.password()),
+        "管理员重置密码统一为123456");
     Problem.changed(
         db.update(
             "UPDATE sys_user SET"
@@ -184,7 +190,7 @@ public class AdminController {
                 + " WHERE id=:id AND version=:v",
             Db.p(
                 "hash",
-                encoder.encode(b.password()),
+                encoder.encode(Passwords.INITIAL),
                 "actor",
                 a.id(),
                 "id",

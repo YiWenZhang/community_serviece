@@ -31,6 +31,7 @@ public class AuthController {
   private final HttpSessionSecurityContextRepository repo;
   private final TransactionTemplate tx;
   private final org.springframework.security.web.csrf.CsrfTokenRepository csrf;
+  private final PasswordService passwords;
 
   public AuthController(
       Db db,
@@ -39,7 +40,8 @@ public class AuthController {
       Audit audit,
       HttpSessionSecurityContextRepository repo,
       TransactionTemplate tx,
-      org.springframework.security.web.csrf.CsrfTokenRepository csrf) {
+      org.springframework.security.web.csrf.CsrfTokenRepository csrf,
+      PasswordService passwords) {
     this.db = db;
     this.encoder = encoder;
     this.auth = auth;
@@ -47,6 +49,7 @@ public class AuthController {
     this.repo = repo;
     this.tx = tx;
     this.csrf = csrf;
+    this.passwords = passwords;
   }
 
   @GetMapping("/csrf")
@@ -66,16 +69,19 @@ public class AuthController {
             s -> {
               var found =
                   db.optional(
-                      "SELECT * FROM sys_user WHERE username=:u FOR UPDATE",
+                      "SELECT *,CASE WHEN locked_until>UTC_TIMESTAMP(3) THEN 1 ELSE 0 END AS"
+                          + " password_locked FROM sys_user WHERE username=:u FOR UPDATE",
                       Db.p("u", body.username()));
               if (found.isEmpty()) {
                 audit.system("LOGIN_FAILED", "FAILED");
                 return null;
               }
               var u = found.get();
-              Object until = u.get("locked_until");
-              boolean locked =
-                  until instanceof java.sql.Timestamp t && t.toInstant().isAfter(Instant.now());
+              boolean locked = ((Number) u.get("password_locked")).intValue() == 1;
+              if (locked) {
+                audit.system("LOGIN_FAILED", "FAILED");
+                return null;
+              }
               String hash = u.get("password_hash").toString();
               boolean valid =
                   !locked
@@ -143,5 +149,26 @@ public class AuthController {
     csrf.saveToken(null, req, response);
     SecurityContextHolder.clearContext();
     return Api.ok(Map.of("loggedOut", true));
+  }
+
+  public record PasswordChange(
+      @NotBlank @Size(max = 128) String currentPassword,
+      @NotBlank @Size(min = 6, max = 72) String newPassword,
+      @NotBlank @Size(max = 72) String confirmPassword) {}
+
+  @GetMapping("/password-status")
+  public Object passwordStatus() {
+    return Api.ok(passwords.status(auth.current()));
+  }
+
+  @PostMapping("/password")
+  @Operation(summary = "本人修改密码，核验当前密码；成功后所有旧会话失效")
+  public Object changePassword(
+      @Valid @RequestBody PasswordChange b, HttpServletRequest req, HttpServletResponse res) {
+    passwords.change(auth.current(), b.currentPassword(), b.newPassword(), b.confirmPassword());
+    if (req.getSession(false) != null) req.getSession(false).invalidate();
+    csrf.saveToken(null, req, res);
+    SecurityContextHolder.clearContext();
+    return Api.ok(Map.of("changed", true, "requireLogin", true));
   }
 }

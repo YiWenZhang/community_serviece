@@ -36,6 +36,7 @@ public class RuleService {
   @Transactional
   public Object save(Actor a, Long id, Rule b) {
     a.require("notice:rule:manage");
+    privacy.check(b.code());
     privacy.check(b.name());
     if (b.noticeType().equals("VACCINE")) {
       Problem.require(b.campaignId() != null, "疫苗规则需指定周期");

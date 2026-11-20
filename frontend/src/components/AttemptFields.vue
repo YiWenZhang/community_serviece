@@ -32,6 +32,7 @@ async function upload(event: Event) {
   try {
     const form = new FormData();
     form.append("file", file);
+    form.append("redactionConfirmed", "true");
     const response = await http.post("/files", form);
     const id = response.data.data.id;
     await api(`/files/${id}/finalize`, "POST", { redactionConfirmed: true });

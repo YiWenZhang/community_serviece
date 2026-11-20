@@ -1,3 +1,5 @@
+**1.3.0密码与HTTPS升级无需新SQL，完整启动及安全检查见[密码与安全检查说明](../密码与安全检查说明.md)。默认整站启动为HTTPS，下面单独后端启动的HTTP地址仅供虚构数据调试。**
+
 # 社区老年服务业务微服务
 
 **升级1.2.0前，必须先按[多社区权限升级说明](../多社区权限升级说明.md)备份并执行V002增量SQL。**
@@ -45,9 +47,9 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\start-local.ps1
 启动脚本依次要求：
 
 1. 现有MySQL账号密码，默认账号root；也可用`-DbUser`指定已有账号。
-2. 首次激活`admin_demo`时使用的**应用管理员密码**，至少12字符、最多72字符；之后启动可留空。
+应用初始密码统一为123456（弱），不再提示设置12位密码。用户登录后可自行修改。
 
-两种密码互相独立，均不写入项目文件。脚本只在当前进程及子进程环境中传递；关闭服务后清理密码环境变量。默认地址`127.0.0.1:8080`，按Ctrl和C停止。端口冲突时使用`-Port 8081`。
+MySQL密码与应用密码相互独立；脚本不保存MySQL密码。脚本只在当前进程及子进程环境中传递；关闭服务后清理密码环境变量。默认地址`127.0.0.1:8080`，按Ctrl和C停止。端口冲突时使用`-Port 8081`。
 
 首次管理员初始化只匹配SQL样例中的禁用`admin_demo`及不可登录标记，启用后绝不由启动脚本重复重置密码。已有活跃管理员密码遗忘时应通过另外的管理员受控重置，不能指望启动参数覆盖。
 
@@ -111,7 +113,7 @@ Vue开发环境建议使用Vite的`/api`代理转发到本服务，保持浏览�
 | COOKIE_SECURE | 本机HTTP为false，HTTPS生产必须true |
 | APP_PUBLIC_DOCS | 本机true，生产建议false并同时关闭springdoc端点 |
 | APP_SCHEDULER_ENABLED | true；测试可false |
-| BOOTSTRAP_ADMIN_PASSWORD | 首次启用禁用管理员，后续留空 |
+| SERVER_SSL_ENABLED / APP_REQUIRE_HTTPS | HTTPS脚本设置true，生产配置强制启用 |
 
 生产配置示例位于`config/application-production.example.yml`。生产必须使用HTTPS、私网MySQL、受控密钥、独立数据卷及数据库备份。普通运行账号不需要DDL权限；审核日志表应限制更新和删除，不能仅凭一张普通表宣称绝对不可篡改。
 
@@ -119,10 +121,10 @@ Vue开发环境建议使用Vite的`/api`代理转发到本服务，保持浏览�
 
 ```powershell
 mvn clean package
-java -jar target/community-service-1.2.0.jar
+java -jar target/community-service-1.3.0.jar
 ```
 
-独立可执行产物为`target/community-service-1.2.0.jar`。直接java启动前必须配置数据库密码及两把密钥；本机优先使用上述交互脚本。Dockerfile提供Java21镜像和非root运行用户：
+独立可执行产物为`target/community-service-1.3.0.jar`。直接java启动前必须配置数据库密码及两把密钥；本机优先使用上述交互脚本。Dockerfile提供Java21镜像和非root运行用户：
 
 ```text
 docker build -t community-service:1.0.0 .

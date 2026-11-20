@@ -117,7 +117,7 @@ async function switchCommunity(id: string) {
 }
 function expired() {
   if (auth.user) {
-    auth.user = null;
+    auth.clearSession();
     router.replace("/login");
   }
 }
@@ -176,6 +176,9 @@ onBeforeUnmount(() => window.removeEventListener("session-expired", expired));
                 auth.user.roles.map(label).join(" / ")
               }}</small>
             </div>
+            <el-button text @click="router.push('/account-security')"
+              >修改密码</el-button
+            >
             <el-button text aria-label="退出登录" @click="logout"
               ><el-icon><SwitchButton /></el-icon
             ></el-button>

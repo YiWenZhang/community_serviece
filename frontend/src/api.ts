@@ -42,7 +42,7 @@ http.interceptors.response.use(
       new ApiError(
         data?.message ||
           (status === 0
-            ? "无法连接后端，请确认后端已启动在 8080 端口。"
+            ? "无法连接后端，请检查后端启动状态、HTTPS证书及代理配置。"
             : "请求未成功，请稍后重试。"),
         status,
       ),

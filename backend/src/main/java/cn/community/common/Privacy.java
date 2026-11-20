@@ -1,5 +1,6 @@
 package cn.community.common;
 
+import java.text.Normalizer;
 import java.util.regex.Pattern;
 import org.springframework.stereotype.Component;
 
@@ -8,14 +9,24 @@ import org.springframework.stereotype.Component;
 public class Privacy {
   private static final Pattern PHONE = Pattern.compile("(?<!\\d)1[3-9]\\d{9}(?!\\d)");
   private static final Pattern ID = Pattern.compile("(?i)(?<!\\d)\\d{17}[0-9x](?!\\d)");
+  private static final Pattern OLD_ID =
+      Pattern.compile("(?<!\\d)\\d{6}\\d{2}(?:0[1-9]|1[0-2])(?:0[1-9]|[12]\\d|3[01])\\d{3}(?!\\d)");
   private static final Pattern ADDRESS =
       Pattern.compile("(?:省|市|区|县).{0,20}(?:路|街|巷).{0,15}号|(?:路|街|巷)\\s*\\d+号");
 
   public String check(String text) {
-    if (text != null)
+    if (text != null) {
+      String normalized =
+          Normalizer.normalize(text, Normalizer.Form.NFKC)
+              .replaceAll("[\\p{Cf}]", "")
+              .replaceAll("(?<=\\d)[\\s\\p{Z}—-]+(?=\\d)", "");
       Problem.require(
-          !PHONE.matcher(text).find() && !ID.matcher(text).find() && !ADDRESS.matcher(text).find(),
+          !PHONE.matcher(normalized).find()
+              && !ID.matcher(normalized).find()
+              && !OLD_ID.matcher(normalized).find()
+              && !ADDRESS.matcher(normalized.replaceAll("[\\s\\p{Z}]", "")).find(),
           "不得录入手机号、身份证号或详细地址，请先脱敏");
+    }
     return text;
   }
 }

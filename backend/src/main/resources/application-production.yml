@@ -1,0 +1,19 @@
+server:
+  address: ${SERVER_ADDRESS:127.0.0.1}
+  ssl:
+    enabled: true
+    enabled-protocols: TLSv1.2,TLSv1.3
+  servlet:
+    session:
+      cookie:
+        secure: true
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false
+app:
+  require-https: true
+  public-docs: false
+  ai:
+    migrate: false

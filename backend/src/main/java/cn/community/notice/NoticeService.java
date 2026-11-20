@@ -633,5 +633,6 @@ public class NoticeService {
   public static void validateKey(String key) {
     Problem.require(
         key != null && key.matches("[A-Za-z0-9_.:-]{1,60}"), "Idempotency-Key必须为1至60位英文数字或_.:-");
+    new Privacy().check(key);
   }
 }

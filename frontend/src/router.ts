@@ -13,12 +13,18 @@ import Knowledge from "./views/Knowledge.vue";
 import AiModels from "./views/AiModels.vue";
 import Communities from "./views/Communities.vue";
 import AuditLogs from "./views/AuditLogs.vue";
+import AccountSecurity from "./views/AccountSecurity.vue";
 
 export const router = createRouter({
   history: createWebHashHistory(),
   routes: [
     { path: "/login", component: Login, meta: { title: "登录" } },
     { path: "/", component: Home, meta: { title: "服务工作台" } },
+    {
+      path: "/account-security",
+      component: AccountSecurity,
+      meta: { title: "修改密码" },
+    },
     {
       path: "/communities",
       component: Communities,

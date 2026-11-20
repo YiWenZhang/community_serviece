@@ -20,6 +20,7 @@ const form = reactive<Row>({
   effectiveDate: "",
   expiryDate: "",
   isDemo: false,
+  redactionConfirmed: false,
 });
 const categories: Row = {
   ELDERCARE: "养老服务",
@@ -59,6 +60,7 @@ function create() {
     effectiveDate: "",
     expiryDate: "",
     isDemo: false,
+    redactionConfirmed: false,
   });
   file.value = null;
   open.value = true;
@@ -72,6 +74,8 @@ function selectFile(event: Event) {
 async function upload() {
   if (!file.value || !form.title)
     return ElMessage.warning("请选择文档并填写标题");
+  if (!form.redactionConfirmed)
+    return ElMessage.warning("请先确认文档及图片已经脱敏");
   saving.value = true;
   try {
     const body = new FormData();
@@ -299,7 +303,10 @@ onBeforeUnmount(() => clearInterval(timer));
           ></el-form-item
         >
       </div></el-form
-    ><template #footer
+    ><el-checkbox v-model="form.redactionConfirmed"
+      >确认文档及图片已脱敏，不含身份证号、家庭住址或原始手机号</el-checkbox
+    >
+    <template #footer
       ><el-button @click="open = false">取消</el-button
       ><el-button type="primary" :loading="saving" @click="upload"
         >上传并解析</el-button

@@ -42,6 +42,9 @@ export const useAuth = defineStore("auth", () => {
   }
   async function logout() {
     await api("/auth/logout", "POST", {});
+    clearSession();
+  }
+  function clearSession() {
     user.value = null;
     communities.value = [];
     communityId.value = "";
@@ -74,6 +77,7 @@ export const useAuth = defineStore("auth", () => {
     restore,
     login,
     logout,
+    clearSession,
     dictionaries,
     loadDictionaries,
     communities,

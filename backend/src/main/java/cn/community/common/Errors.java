@@ -18,10 +18,22 @@ public class Errors {
   @ExceptionHandler({
     MethodArgumentNotValidException.class,
     HttpMessageNotReadableException.class,
-    IllegalArgumentException.class
+    IllegalArgumentException.class,
+    org.springframework.web.bind.MissingRequestHeaderException.class,
+    org.springframework.web.bind.MissingServletRequestParameterException.class,
+    org.springframework.web.multipart.support.MissingServletRequestPartException.class,
+    org.springframework.beans.TypeMismatchException.class
   })
   ResponseEntity<?> invalid(Exception e) {
     return error(400, "请求格式或字段校验失败，请检查接口文档");
+  }
+
+  @ExceptionHandler({
+    org.springframework.web.servlet.resource.NoResourceFoundException.class,
+    org.springframework.web.servlet.NoHandlerFoundException.class
+  })
+  ResponseEntity<?> missing(Exception e) {
+    return error(404, "资源不存在");
   }
 
   @ExceptionHandler(DuplicateKeyException.class)
@@ -42,7 +54,7 @@ public class Errors {
   @ExceptionHandler(Exception.class)
   ResponseEntity<?> unknown(Exception e) {
     org.slf4j.LoggerFactory.getLogger(Errors.class)
-        .error("request failed trace={}", MDC.get("traceId"), e);
+        .error("request failed trace={} type={}", MDC.get("traceId"), e.getClass().getSimpleName());
     return error(500, "服务暂时不可用，请使用traceId联系管理员");
   }
 

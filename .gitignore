@@ -25,6 +25,8 @@
 *.local
 /backend/config/application-local.yml
 /backend/config/application-production.yml
+/backend/config/local-*.crt
+/backend/config/local-*.csr
 *.pem
 *.key
 *.p12

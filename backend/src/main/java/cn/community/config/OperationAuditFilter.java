@@ -7,6 +7,7 @@ import java.io.IOException;
 import java.util.*;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.filter.OncePerRequestFilter;
+import org.springframework.web.servlet.HandlerMapping;
 
 /** 独立于业务事务记录访问结果，不记录请求体、密码、密钥或完整查询字符串。 */
 public class OperationAuditFilter extends OncePerRequestFilter {
@@ -43,7 +44,9 @@ public class OperationAuditFilter extends OncePerRequestFilter {
                 user,
                 request.getAttribute("auditCommunityId"),
                 request.getMethod(),
-                request.getRequestURI(),
+                Objects.toString(
+                    request.getAttribute(HandlerMapping.BEST_MATCHING_PATTERN_ATTRIBUTE),
+                    "/api/v1/[unmatched]"),
                 failed && response.getStatus() < 400 ? 500 : response.getStatus());
           } catch (RuntimeException e) {
             org.slf4j.LoggerFactory.getLogger(getClass())

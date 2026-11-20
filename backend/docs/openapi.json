@@ -3,12 +3,12 @@
   "info": {
     "title": "社区老年服务业务微服务接口",
     "description": "含政策知识库、模型配置及RAG问答。先GET /api/v1/auth/csrf，再使用X-XSRF-TOKEN及Cookie登录。所有写请求要求CSRF，触达、跟进及异步作业要求Idempotency-Key。BIGINT及统计数量响应为字符串。",
-    "version": "1.2.0"
+    "version": "1.3.0"
   },
   "servers": [
     {
-      "url": "http://127.0.0.1:8080",
-      "description": "本机默认服务"
+      "url": "https://127.0.0.1:8443",
+      "description": "本机HTTPS后端（默认启动脚本）"
     }
   ],
   "security": [
@@ -326,13 +326,55 @@
         }
       }
     },
-    "/api/v1/users/{id}/password": {
+    "/api/v1/users/{id}/reset-password": {
       "post": {
         "tags": [
           "02 用户角色与基础字典"
         ],
         "summary": "管理员重置应用用户密码，不涉及MySQL密码",
         "operationId": "password",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Password"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/users/{id}/password": {
+      "post": {
+        "tags": [
+          "02 用户角色与基础字典"
+        ],
+        "summary": "管理员重置应用用户密码，不涉及MySQL密码",
+        "operationId": "password_1",
         "parameters": [
           {
             "name": "id",
@@ -1100,6 +1142,17 @@
         ],
         "summary": "上传PNG或JPEG，重编码隔离保存",
         "operationId": "upload",
+        "parameters": [
+          {
+            "name": "redactionConfirmed",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false
+            }
+          }
+        ],
         "requestBody": {
           "content": {
             "multipart/form-data": {
@@ -1415,6 +1468,15 @@
               "type": "integer",
               "format": "int64"
             }
+          },
+          {
+            "name": "redactionConfirmed",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false
+            }
           }
         ],
         "requestBody": {
@@ -1434,6 +1496,37 @@
               }
             }
           }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/password": {
+      "post": {
+        "tags": [
+          "01 登录与会话"
+        ],
+        "summary": "本人修改密码，核验当前密码；成功后所有旧会话失效",
+        "operationId": "changePassword",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasswordChange"
+              }
+            }
+          },
+          "required": true
         },
         "responses": {
           "200": {
@@ -1733,6 +1826,15 @@
           },
           {
             "name": "isDemo",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false
+            }
+          },
+          {
+            "name": "redactionConfirmed",
             "in": "query",
             "required": false,
             "schema": {
@@ -2468,6 +2570,26 @@
         }
       }
     },
+    "/api/v1/auth/password-status": {
+      "get": {
+        "tags": [
+          "01 登录与会话"
+        ],
+        "operationId": "passwordStatus",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/auth/me": {
       "get": {
         "tags": [
@@ -2857,7 +2979,7 @@
           "password": {
             "type": "string",
             "maxLength": 72,
-            "minLength": 12
+            "minLength": 0
           },
           "displayName": {
             "type": "string",
@@ -2884,7 +3006,6 @@
         },
         "required": [
           "displayName",
-          "password",
           "roleIds",
           "username"
         ]
@@ -2900,12 +3021,9 @@
           "password": {
             "type": "string",
             "maxLength": 72,
-            "minLength": 12
+            "minLength": 0
           }
-        },
-        "required": [
-          "password"
-        ]
+        }
       },
       "Name": {
         "type": "object",
@@ -3321,6 +3439,31 @@
           "gridId",
           "ownerUserId",
           "reason"
+        ]
+      },
+      "PasswordChange": {
+        "type": "object",
+        "properties": {
+          "currentPassword": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 0
+          },
+          "newPassword": {
+            "type": "string",
+            "maxLength": 72,
+            "minLength": 6
+          },
+          "confirmPassword": {
+            "type": "string",
+            "maxLength": 72,
+            "minLength": 0
+          }
+        },
+        "required": [
+          "confirmPassword",
+          "currentPassword",
+          "newPassword"
         ]
       },
       "Login": {

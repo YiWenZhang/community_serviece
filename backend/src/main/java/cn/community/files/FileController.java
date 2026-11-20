@@ -25,8 +25,13 @@ public class FileController {
 
   @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
   @Operation(summary = "上传PNG或JPEG，重编码隔离保存")
-  public Object upload(@RequestPart MultipartFile file) throws Exception {
-    return Api.ok(files.upload(auth.current(), file));
+  public Object upload(
+      @RequestPart MultipartFile file,
+      @RequestParam(defaultValue = "false") boolean redactionConfirmed)
+      throws Exception {
+    var a = auth.require("file:upload");
+    Problem.require(redactionConfirmed, "请先确认图片已经脱敏，不含身份证、家庭住址或原始手机号");
+    return Api.ok(files.upload(a, file));
   }
 
   @PostMapping("/{id}/finalize")

@@ -40,8 +40,13 @@ public class SecurityConfig {
       HttpSessionSecurityContextRepository repo,
       CsrfTokenRepository csrf,
       cn.community.common.Audit audit,
+      @Value("${app.require-https:false}") boolean requireHttps,
       @Value("${app.public-docs}") boolean docs)
       throws Exception {
+    if (requireHttps)
+      http.addFilterAfter(
+          new SecureTransportFilter(),
+          org.springframework.security.web.context.SecurityContextHolderFilter.class);
     http.addFilterAfter(
             new OperationAuditFilter(audit),
             org.springframework.security.web.context.SecurityContextHolderFilter.class)
