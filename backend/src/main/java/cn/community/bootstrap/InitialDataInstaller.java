@@ -354,7 +354,7 @@ public final class InitialDataInstaller {
           project.resolve("database/initial-data-install.local"),
           json.write(journal),
           StandardCharsets.UTF_8);
-      System.out.println("四社区初始数据导入完成：4个社区、7个账号、20名老人、12批通知、32份已入库政策。");
+      System.out.println("四社区初始数据导入完成：4个社区、7个账号、20名老人、26批通知、32份已入库政策。");
       System.out.println("完整备份：" + backup);
     }
   }
@@ -793,7 +793,6 @@ public final class InitialDataInstaller {
     for (var c : rows("communities")) {
       long cid = number(c, "id");
       String name = c.get("name").toString();
-      var admin = auth.worker(1, cid);
       List<Long> ids = elderIds.get(cid);
       for (int kind = 0; kind < 3; kind++) {
         Set<Long> targets =
@@ -817,25 +816,42 @@ public final class InitialDataInstaller {
                 : kind == 1
                     ? "社区正在核对工作日午餐、居家照护和适老化转介需求。可以线下提出申请，服务承接和收费由相应机构确认，不以智能手机使用为条件。请按本人实际需要选择参与。"
                     : "邀请参加社区健康科普、阅读及适宜文体活动。具体时间与场地由本期活动安排另行确认，参与自愿；出行或沟通需要协助的，可向责任网格员提出。";
-        long nid =
-            number(
-                json.map(
-                    notices.create(
-                        admin,
-                        new NoticeService.Draft(
-                            type,
-                            title,
-                            content,
-                            targets,
-                            kind == 0 ? campaigns.get(cid) : null,
-                            YearMonth.from(today).toString()))),
-                "id");
-        notices.activate(admin, nid, 0);
-        var recipients =
+        // Seed through the same owner-scoped business permissions as normal requests.
+        Map<Long, Set<Long>> targetsByOwner = new LinkedHashMap<>();
+        for (var elder :
             db.list(
-                "SELECT id,elder_id,owner_user_id FROM notice_recipient WHERE notice_id=:id ORDER"
-                    + " BY elder_id",
-                Db.p("id", nid));
+                "SELECT id,owner_user_id FROM elder_profile WHERE community_id=:community ORDER BY"
+                    + " id",
+                Db.p("community", cid))) {
+          long eid = number(elder, "id");
+          if (targets.contains(eid))
+            targetsByOwner
+                .computeIfAbsent(number(elder, "owner_user_id"), k -> new LinkedHashSet<>())
+                .add(eid);
+        }
+        List<Map<String, Object>> recipients = new ArrayList<>();
+        for (var target : targetsByOwner.entrySet()) {
+          var issuer = auth.worker(target.getKey(), cid);
+          long nid =
+              number(
+                  json.map(
+                      notices.create(
+                          issuer,
+                          new NoticeService.Draft(
+                              type,
+                              title,
+                              content,
+                              target.getValue(),
+                              kind == 0 ? campaigns.get(cid) : null,
+                              YearMonth.from(today).toString()))),
+                  "id");
+          notices.activate(issuer, nid, 0);
+          recipients.addAll(
+              db.list(
+                  "SELECT id,elder_id,owner_user_id FROM notice_recipient WHERE notice_id=:id",
+                  Db.p("id", nid)));
+        }
+        recipients.sort(Comparator.comparingLong(r -> number(r, "elder_id")));
         for (int i = 0; i < recipients.size(); i++) {
           var r = recipients.get(i);
           long rid = number(r, "id");
@@ -948,7 +964,7 @@ public final class InitialDataInstaller {
             notices.attempt(
                 actor,
                 recipient,
-                UUID.randomUUID().toString(),
+                "initial-r" + recipient + "-v" + version,
                 new NoticeService.Attempt(
                     version,
                     channel,
@@ -1050,7 +1066,7 @@ public final class InitialDataInstaller {
 
   public void verify() {
     for (var entry :
-        Map.of("community", 4, "sys_user", 7, "elder_profile", 20, "notice", 12, "ai_document", 32)
+        Map.of("community", 4, "sys_user", 7, "elder_profile", 20, "notice", 26, "ai_document", 32)
             .entrySet())
       Problem.require(
           db.count("SELECT COUNT(*) FROM `" + entry.getKey() + "`", Map.of()) == entry.getValue(),

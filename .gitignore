@@ -40,3 +40,6 @@
 Thumbs.db
 Desktop.ini
 ~$*
+
+# 本地阶段性汇报文件
+/report_ppt/

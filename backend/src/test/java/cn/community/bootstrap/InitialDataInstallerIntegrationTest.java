@@ -39,7 +39,21 @@ class InitialDataInstallerIntegrationTest {
                     + " name_hash IS NOT NULL AND phone_hash IS NOT NULL",
                 Map.of()))
         .isEqualTo(20);
+    assertThat(db.count("SELECT COUNT(*) FROM notice", Map.of())).isEqualTo(26);
     assertThat(db.count("SELECT COUNT(*) FROM notice_recipient", Map.of())).isEqualTo(52);
+    assertThat(
+            db.count(
+                "SELECT COUNT(*) FROM notice n WHERE NOT EXISTS (SELECT 1 FROM sys_user_role ur"
+                    + " JOIN sys_role r ON r.id=ur.role_id WHERE ur.user_id=n.created_by AND"
+                    + " r.code='GRID_WORKER')",
+                Map.of()))
+        .isZero();
+    assertThat(
+            db.count(
+                "SELECT COUNT(*) FROM notice_recipient r JOIN notice n ON n.id=r.notice_id WHERE"
+                    + " n.created_by<>r.owner_at_issue OR n.community_id<>r.community_id",
+                Map.of()))
+        .isZero();
     assertThat(db.count("SELECT COUNT(*) FROM followup_record", Map.of())).isEqualTo(4);
     assertThat(
             db.count(
