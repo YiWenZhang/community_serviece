@@ -65,7 +65,7 @@ onMounted(load);
 <template>
   <div class="page-heading">
     <div>
-      <h1>操作日志</h1>
+      <h1>操作日志 📝</h1>
       <p>
         追溯全部社区的业务操作、权限调整和访问结果；日志不记录密码、模型密钥或请求正文。
       </p>

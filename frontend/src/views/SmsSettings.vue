@@ -59,7 +59,7 @@ onMounted(load);
 <template>
   <div class="page-heading">
     <div>
-      <h1>短信平台设置</h1>
+      <h1>短信平台设置 💬</h1>
       <p>为当前社区配置已备案的短信签名、模板与平台接口。</p>
     </div>
   </div>

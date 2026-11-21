@@ -145,7 +145,7 @@ onBeforeUnmount(() => clearInterval(timer));
 <template>
   <div class="page-heading">
     <div>
-      <h1>政策知识库</h1>
+      <h1>政策知识库 📖</h1>
       <p>让业务规范成为可检索、有出处的政策依据。</p>
     </div>
     <el-button type="primary" @click="create">上传政策文档</el-button>
@@ -229,7 +229,7 @@ onBeforeUnmount(() => clearInterval(timer));
           }}</small></template
         ></el-table-column
       >
-      <el-table-column label="操作" width="340" class-name="actions-column"
+      <el-table-column label="操作" width="480" class-name="actions-column"
         ><template #default="{ row }"
           ><el-button link type="primary" @click="inspect(row)"
             >查看解析</el-button

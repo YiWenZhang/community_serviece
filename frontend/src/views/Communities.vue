@@ -92,7 +92,7 @@ onMounted(load);
 <template>
   <div class="page-heading">
     <div>
-      <h1>社区管理</h1>
+      <h1>社区管理 🏘️</h1>
       <p>
         维护全部社区资料、图标和状态；在用户管理中分配网格员可进入的一个或多个社区。
       </p>

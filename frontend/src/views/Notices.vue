@@ -458,7 +458,7 @@ onMounted(async () => {
 <template>
   <div class="page-heading business-heading">
     <div>
-      <h1>{{ admin ? "通知进度" : "通知办理" }}</h1>
+      <h1>{{ admin ? "通知进度 📈" : "通知办理 🔔" }}</h1>
       <p>
         {{
           admin

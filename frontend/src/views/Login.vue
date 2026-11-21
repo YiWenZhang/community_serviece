@@ -31,7 +31,7 @@ async function submit() {
       </div>
       <div class="login-copy">
         <span class="eyebrow">COMMUNITY CARE</span>
-        <h1>用心服务，<br />让关怀更近一步。</h1>
+        <h1>用心服务，<br />让关怀更近一步。🌿</h1>
         <p>
           从一份档案、一次通知到一次跟进，<br />记录每一份服务，让社区关怀有始有终。
         </p>

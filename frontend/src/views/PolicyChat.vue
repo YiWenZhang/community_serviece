@@ -1,6 +1,16 @@
 <script setup lang="ts">
 import { nextTick, onMounted, ref } from "vue";
 import { ElMessageBox } from "element-plus";
+import {
+  Plus,
+  ChatLineSquare,
+  Document,
+  Search,
+  CircleCheck,
+  Lock,
+  Promotion,
+  InfoFilled,
+} from "@element-plus/icons-vue";
 import { api, http, fail, type Row } from "../api";
 import AnswerRichText from "../components/AnswerRichText.vue";
 const status = ref<Row>({}),
@@ -15,9 +25,14 @@ const status = ref<Row>({}),
   log = ref<HTMLElement | null>(null),
   source = ref<Row | null>(null);
 const examples = [
-  "社区助餐服务如何申请，需要哪些材料？",
-  "家属转告的疫苗通知可以直接算已接种吗？",
-  "独居老人的探访发现异常后应该怎么办？",
+  { icon: Document, text: "社区助餐服务如何申请，需要哪些材料？", tag: "办理流程" },
+  { icon: CircleCheck, text: "家属转告的疫苗通知可以直接算已接种吗？", tag: "业务认定" },
+  { icon: Lock, text: "独居老人的探访发现异常后应该怎么办？", tag: "应急处置" },
+];
+const features = [
+  { icon: Search, title: "原文检索", desc: "只查已入库且在有效期内的政策文档" },
+  { icon: Document, title: "依据可查", desc: "每条回答都附原文出处，点开即核对" },
+  { icon: Lock, title: "隐私保护", desc: "自动脱敏，仅你可见自己的咨询记录" },
 ];
 let retry: { question: string; requestId: string } | null = null;
 async function load() {
@@ -122,8 +137,8 @@ onMounted(load);
 <template>
   <div class="page-heading">
     <div>
-      <h1>政策问答助手</h1>
-      <p>围绕养老、社区服务与疫苗业务提问，答案附带知识库原文。</p>
+      <h1>政策问答助手 📚</h1>
+      <p>围绕养老、社区服务与疫苗业务提问，答案附带知识库原文，可溯源、可核对。</p>
     </div>
     <el-tag :type="status.configured ? 'success' : 'warning'">{{
       status.configured ? status.model : "尚未配置模型"
@@ -147,10 +162,20 @@ onMounted(load);
   />
   <div class="policy-layout">
     <aside class="panel conversation-list">
-      <el-button type="primary" plain :disabled="sending" @click="fresh"
-        >＋ 新建政策咨询</el-button
+      <div class="conversation-decor" aria-hidden="true">
+        <span class="decor-orb decor-orb-one" />
+        <span class="decor-orb decor-orb-two" />
+      </div>
+      <el-button
+        class="new-conversation-btn"
+        type="primary"
+        :disabled="sending"
+        @click="fresh"
+        ><el-icon><Plus /></el-icon> 新建政策咨询</el-button
       >
-      <p class="muted conversation-label">最近咨询 · 仅本人可见</p>
+      <p class="muted conversation-label">
+        <el-icon><ChatLineSquare /></el-icon> 最近咨询 · 仅本人可见
+      </p>
       <div
         v-for="c in conversations"
         :key="c.id"
@@ -172,26 +197,49 @@ onMounted(load);
           ×
         </button>
       </div>
-      <p v-if="!conversations.length" class="muted">还没有咨询记录。</p>
+      <div v-if="!conversations.length" class="conversation-empty">
+        <span>🗂️</span>
+        <p>还没有咨询记录<br />点击上方按钮开始提问吧</p>
+      </div>
       <div class="retrieval-info">
-        <strong>{{ status.currentIndexDocuments || 0 }} 份可检索文档</strong
-        ><small>{{ status.embeddingModel || "正在连接知识库" }}</small>
+        <span class="retrieval-icon"><el-icon><Document /></el-icon></span>
+        <div>
+          <strong>{{ status.currentIndexDocuments || 0 }} 份可检索文档</strong>
+          <small>{{ status.embeddingModel || "正在连接知识库" }}</small>
+        </div>
       </div>
     </aside>
-    <section v-loading="loading" class="panel policy-chat">
+    <section
+      v-loading="loading"
+      class="panel policy-chat"
+      :class="{ 'policy-chat-welcome': !messages.length && !sending }"
+    >
       <div ref="log" class="chat-log" aria-live="polite">
         <div v-if="!messages.length && !sending" class="chat-welcome">
+          <div class="welcome-glow" aria-hidden="true" />
           <div class="chat-symbol">策</div>
-          <h2>业务有疑问，先查政策依据</h2>
+          <h2>业务有疑问，先查政策依据 👋</h2>
           <p>我会检索已入库且在有效期内的文档，按原文解释办理条件与流程。</p>
+          <div class="feature-cards">
+            <div v-for="f in features" :key="f.title" class="feature-card">
+              <span class="feature-icon"><el-icon><component :is="f.icon" /></el-icon></span>
+              <strong>{{ f.title }}</strong>
+              <small>{{ f.desc }}</small>
+            </div>
+          </div>
+          <p class="example-title">试试这样问 👇</p>
           <div class="example-questions">
             <button
               v-for="example in examples"
-              :key="example"
+              :key="example.text"
               :disabled="!status.configured"
-              @click="send(example)"
+              @click="send(example.text)"
             >
-              {{ example }} <span>↗</span>
+              <span class="example-icon"><el-icon><component :is="example.icon" /></el-icon></span>
+              <span class="example-main"
+                ><small>{{ example.tag }}</small>{{ example.text }}</span
+              >
+              <span class="example-arrow"><el-icon><Promotion /></el-icon></span>
             </button>
           </div>
         </div>
@@ -203,10 +251,10 @@ onMounted(load);
           <div class="assistant-answer">
             <span class="assistant-badge">策</span>
             <div class="answer-body">
-              <strong>政策助手</strong>
+              <strong><span class="answer-badge-dot" />政策助手 · 依据解读</strong>
               <AnswerRichText class="answer-text" :text="m.answer" />
               <div v-if="m.citations?.length" class="citation-list">
-                <small>政策原文依据 · 点击查看</small
+                <small><el-icon><InfoFilled /></el-icon> 政策原文依据 · 点击查看原文</small
                 ><button
                   v-for="c in m.citations"
                   :key="c.number"
@@ -261,16 +309,18 @@ onMounted(load);
           :rows="3"
           resize="none"
           maxlength="2000"
-          placeholder="请输入政策或办理流程问题，Ctrl + Enter 发送"
+          placeholder="请输入政策或办理流程问题，按 Enter 发送，Shift + Enter 换行"
           aria-label="政策问题"
           :disabled="sending"
-          @keydown.ctrl.enter.prevent="send()"
+          @keydown.enter.exact.prevent="send()"
         />
         <div class="compose-footer">
           <small
-            >答案来自知识库；依据不足时会明确说明。演示规范不作为真实政务依据。</small
+            >答案来自知识库；依据不足时会明确说明。演示规范不作为真实政务依据。💡</small
           ><el-button
+            class="send-btn"
             type="primary"
+            :icon="Promotion"
             :disabled="!question.trim() || !status.configured || loading"
             :loading="sending"
             @click="send()"
@@ -317,12 +367,13 @@ onMounted(load);
   display: grid;
   grid-template-columns: 230px minmax(0, 1fr);
   gap: 20px;
+  align-items: stretch;
 }
 .conversation-list {
-  padding: 20px 14px;
+  padding: 20px 16px;
   display: flex;
   flex-direction: column;
-  max-height: 760px;
+  height: 100%;
   overflow: auto;
 }
 .conversation-label {
@@ -346,16 +397,16 @@ onMounted(load);
 .conversation-title {
   background: none;
   border: 0;
-  padding: 12px;
+  padding: 14px 12px;
   text-align: left;
   min-width: 0;
   flex: 1;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  color: #36564d;
+  color: #2a4a3f;
   cursor: pointer;
-  font-size: 13px;
+  font-size: 15px;
 }
 .delete-conversation {
   border: 0;
@@ -363,17 +414,19 @@ onMounted(load);
   color: #85958d;
   cursor: pointer;
   padding: 8px;
+  font-size: 18px;
 }
 .retrieval-info {
   margin-top: auto;
   padding: 28px 8px 0;
-  font-size: 12px;
-  color: #60766c;
+  font-size: 13px;
+  color: #5a6d63;
 }
 .retrieval-info small {
   display: block;
   line-height: 1.6;
   margin-top: 8px;
+  font-size: 12px !important;
 }
 .policy-chat {
   padding: 0;
@@ -386,7 +439,7 @@ onMounted(load);
 .chat-log {
   flex: 1;
   overflow: auto;
-  padding: 30px;
+  padding: 20px 30px;
 }
 .chat-welcome {
   max-width: 560px;
@@ -582,6 +635,7 @@ onMounted(load);
   }
   .conversation-list {
     max-height: 210px;
+    height: auto;
   }
   .retrieval-info {
     display: none;
@@ -597,6 +651,426 @@ onMounted(load);
   }
   .compose-footer small {
     max-width: 65%;
+  }
+}
+
+/* ---- 全面美化 ---- */
+.new-conversation-btn {
+  width: 100%;
+  height: 42px;
+  font-size: 14px;
+  font-weight: 600;
+  border-radius: 10px;
+  box-shadow: 0 6px 16px rgba(34, 117, 106, 0.22);
+  transition: transform 0.2s ease, box-shadow 0.2s ease !important;
+}
+.new-conversation-btn:hover:not(.is-disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 22px rgba(34, 117, 106, 0.32);
+}
+.conversation-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px !important;
+}
+.conversation-empty {
+  text-align: center;
+  padding: 30px 10px;
+  color: #93a199;
+}
+.conversation-empty span {
+  font-size: 34px;
+  display: block;
+  margin-bottom: 10px;
+  opacity: 0.75;
+}
+.conversation-empty p {
+  font-size: 12px;
+  line-height: 1.8;
+  margin: 0;
+}
+.retrieval-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: auto;
+  padding: 14px !important;
+  background: linear-gradient(135deg, #f0f7f2, #e7f1ea);
+  border: 1px solid #dcebe0;
+  border-radius: 12px;
+}
+.retrieval-icon {
+  flex: none;
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  background: #fff;
+  color: #2f7d6e;
+  font-size: 18px;
+  box-shadow: 0 2px 8px rgba(47, 125, 110, 0.12);
+}
+.retrieval-info strong {
+  font-size: 15px;
+  color: #2a5244;
+}
+.retrieval-info small {
+  font-size: 11px !important;
+  margin-top: 4px !important;
+}
+
+.chat-welcome {
+  position: relative;
+  max-width: 680px;
+  margin: 8px auto;
+  padding: 26px 30px 24px;
+  background: linear-gradient(180deg, #ffffff 0%, #fbfdf9 100%);
+  border: 1px solid #e6ede5;
+  border-radius: 18px;
+  box-shadow: 0 12px 36px rgba(28, 58, 52, 0.07),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  overflow: hidden;
+}
+.welcome-glow {
+  position: absolute !important;
+  top: -90px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 320px;
+  height: 200px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(95, 199, 176, 0.18), transparent 70%);
+  filter: blur(10px);
+  pointer-events: none;
+}
+.chat-welcome > *:not(.welcome-glow) {
+  position: relative;
+}
+.chat-symbol {
+  width: 72px;
+  height: 72px;
+  font-size: 32px;
+  margin-bottom: 18px;
+}
+.chat-welcome h2 {
+  font-size: 21px;
+  font-weight: 700;
+  color: #24483e;
+  margin: 0 0 8px;
+}
+.feature-cards {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin: 24px 0 26px;
+}
+.feature-card {
+  padding: 16px 12px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #f7faf5, #eef4ec);
+  border: 1px solid #e3ede1;
+  text-align: center;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.feature-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 18px rgba(40, 80, 60, 0.1);
+}
+.feature-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #3aa6a0, #22756a);
+  color: #fff;
+  font-size: 17px;
+  margin-bottom: 8px;
+  box-shadow: 0 4px 10px rgba(34, 117, 106, 0.24);
+}
+.feature-card strong {
+  display: block;
+  font-size: 13px;
+  color: #2a5244;
+  margin-bottom: 4px;
+}
+.feature-card small {
+  display: block;
+  font-size: 11px;
+  color: #7d8f84;
+  line-height: 1.6;
+}
+.example-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #5f7a68;
+  margin: 0 0 12px;
+}
+.example-questions button {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+}
+.example-icon {
+  flex: none;
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border-radius: 9px;
+  background: #e7f3ef;
+  color: #2f7d6e;
+  font-size: 15px;
+}
+.example-main {
+  flex: 1;
+  text-align: left;
+  font-size: 13px;
+  color: #3a594c;
+}
+.example-main small {
+  display: block;
+  font-size: 11px;
+  color: #6ba28f;
+  margin-bottom: 2px;
+}
+.example-arrow {
+  color: #6ba28f;
+  font-size: 14px;
+}
+
+.answer-body > strong {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: #2a5244;
+}
+.answer-badge-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #3aa6a0;
+  box-shadow: 0 0 0 3px rgba(58, 166, 160, 0.18);
+}
+.citation-list > small {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.citation-list > small::before {
+  display: none;
+}
+.chat-compose {
+  background: linear-gradient(180deg, #ffffff, #fafcf9);
+  box-shadow: 0 -6px 20px rgba(28, 58, 52, 0.04);
+}
+.send-btn {
+  height: 40px;
+  padding: 0 22px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  box-shadow: 0 6px 16px rgba(34, 117, 106, 0.26);
+  transition: transform 0.18s ease, box-shadow 0.18s ease !important;
+}
+.send-btn:hover:not(.is-disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 22px rgba(34, 117, 106, 0.34);
+}
+/* ---- 侧边栏：淡绿渐变 + 浮动光斑 + 装饰 ---- */
+.conversation-list {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(165deg, #f4faf5 0%, #eaf4ee 45%, #e2efe7 100%);
+  border: 1px solid #dcebdf;
+  border-radius: 16px;
+  box-shadow: 0 10px 30px rgba(40, 90, 65, 0.09),
+    inset 0 1px 0 rgba(255, 255, 255, 0.85);
+  transition: box-shadow 0.3s ease, transform 0.3s ease;
+}
+.conversation-list:hover {
+  box-shadow: 0 16px 40px rgba(40, 90, 65, 0.14),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+.conversation-decor {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  border-radius: inherit;
+}
+.conversation-decor::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 4px;
+  width: 100%;
+  background: linear-gradient(90deg, #5fc7b0, #3aa6a0, #8fbcb3);
+}
+.decor-orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(8px);
+  animation: orbFloat 9s ease-in-out infinite;
+}
+.decor-orb-one {
+  width: 180px;
+  height: 180px;
+  top: -70px;
+  right: -80px;
+  background: radial-gradient(circle, rgba(95, 199, 176, 0.28), transparent 70%);
+}
+.decor-orb-two {
+  width: 150px;
+  height: 150px;
+  bottom: 60px;
+  left: -90px;
+  background: radial-gradient(circle, rgba(143, 188, 179, 0.25), transparent 70%);
+  animation-delay: -4s;
+}
+@keyframes orbFloat {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-18px);
+  }
+}
+.conversation-list > *:not(.conversation-decor) {
+  position: relative;
+  z-index: 1;
+}
+.new-conversation-btn {
+  box-shadow: 0 8px 20px rgba(34, 117, 106, 0.28);
+}
+.conversation-row {
+  background: rgba(255, 255, 255, 0.45);
+  border: 1px solid rgba(220, 235, 224, 0.7);
+  transition: background 0.25s ease, box-shadow 0.25s ease,
+    border-color 0.25s ease, transform 0.25s ease;
+}
+.conversation-row:hover {
+  background: rgba(255, 255, 255, 0.8);
+  transform: translateX(3px);
+}
+.conversation-row.selected {
+  background: linear-gradient(90deg, #ffffff, #f3faf6);
+  border-color: #a8ccb7;
+  box-shadow: inset 3px 0 0 #3aa6a0, 0 4px 14px rgba(40, 90, 65, 0.1);
+}
+.retrieval-info {
+  background: rgba(255, 255, 255, 0.75);
+  border: 1px solid rgba(220, 235, 224, 0.85);
+}
+
+/* ---- 问答卡片：与侧边栏统一的淡绿渐变风格 ---- */
+.policy-chat {
+  position: relative;
+  background: linear-gradient(165deg, #f4faf5 0%, #eaf4ee 48%, #e3f0e8 100%);
+  border: 1px solid #dcebdf;
+  border-radius: 16px;
+  box-shadow: 0 10px 30px rgba(40, 90, 65, 0.09),
+    inset 0 1px 0 rgba(255, 255, 255, 0.85);
+  overflow: hidden;
+  transition: box-shadow 0.3s ease;
+}
+.policy-chat:hover {
+  box-shadow: 0 16px 40px rgba(40, 90, 65, 0.14),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+.chat-log {
+  background: transparent;
+}
+.chat-welcome {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.96) 0%, rgba(251, 253, 249, 0.9) 100%);
+  border: 1px solid #dcebdf;
+  box-shadow: 0 12px 36px rgba(40, 90, 65, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+.chat-compose {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(244, 250, 245, 0.95));
+  border-top: 1px solid #dcebdf;
+  box-shadow: 0 -6px 20px rgba(40, 90, 65, 0.05);
+}
+
+/* 欢迎态：高度自适应，卡片完整展示，输入区自然下移 */
+.policy-chat-welcome {
+  height: auto !important;
+  min-height: min(780px, calc(100vh - 240px));
+}
+.policy-chat-welcome .chat-log {
+  overflow: visible;
+}
+/* ---- 紧凑化：一屏完整展示欢迎内容 ---- */
+.chat-welcome {
+  max-width: 640px;
+  margin: 2px auto;
+  padding: 16px 22px 14px;
+}
+.chat-symbol {
+  width: 56px;
+  height: 56px;
+  font-size: 26px;
+  margin-bottom: 10px;
+}
+.chat-welcome h2 {
+  font-size: 19px;
+  margin-bottom: 5px;
+}
+.chat-welcome > p {
+  font-size: 13px !important;
+  margin: 4px 0 !important;
+}
+.feature-cards {
+  gap: 10px;
+  margin: 14px 0 16px;
+}
+.feature-card {
+  padding: 10px 8px;
+}
+.feature-icon {
+  width: 28px;
+  height: 28px;
+  font-size: 14px;
+  margin-bottom: 5px;
+}
+.feature-card strong {
+  font-size: 12px;
+}
+.feature-card small {
+  font-size: 10px;
+}
+.example-title {
+  font-size: 12px;
+  margin-bottom: 8px;
+}
+.example-questions {
+  gap: 8px;
+  margin-top: 0;
+}
+.example-questions button {
+  padding: 8px 10px !important;
+}
+.example-icon {
+  width: 26px;
+  height: 26px;
+  font-size: 13px;
+}
+.policy-chat-welcome {
+  min-height: 0;
+}
+@media (max-width: 760px) {
+  .feature-cards {
+    grid-template-columns: 1fr;
+  }
+  .chat-welcome {
+    padding: 16px 18px;
   }
 }
 </style>

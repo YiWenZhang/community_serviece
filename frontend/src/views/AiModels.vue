@@ -132,7 +132,7 @@ onMounted(load);
 <template>
   <div class="page-heading">
     <div>
-      <h1>AI 模型配置</h1>
+      <h1>AI 模型配置 🤖</h1>
       <p>维护多个服务商配置，一键切换政策解析与问答使用的模型。</p>
     </div>
     <el-button type="primary" @click="edit()">新增模型配置</el-button>

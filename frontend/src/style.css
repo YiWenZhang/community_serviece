@@ -1062,10 +1062,7 @@ nav a.active::before {
 
 /* ---- 标题渐变 ---- */
 .page-heading h1 {
-  background: linear-gradient(120deg, #244c3e, #2f8070);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+  color: #24483e;
 }
 
 /* ---- 通用卡片 / 面板 ---- */
@@ -2611,7 +2608,7 @@ nav a.active::before {
   letter-spacing: 0;
 }
 .business-heading h1::before {
-  display: none;
+  display: block;
 }
 .business-heading p {
   font-size: 13px;
@@ -2922,4 +2919,160 @@ nav a.active::before {
   max-height: 56vh;
   overflow-y: auto;
   padding-right: 6px;
+}
+
+/* =========================================================
+   顶栏用户名醒目 + 通用 chip 操作链接 + 操作列对齐
+   ========================================================= */
+.identity strong {
+  font-size: 16px !important;
+  font-weight: 750 !important;
+  color: #1f4438 !important;
+  letter-spacing: 0.3px;
+  line-height: 1.3;
+}
+.identity small {
+  font-size: 12px !important;
+  color: #6b7d73 !important;
+  margin-top: 2px;
+}
+
+.action-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 28px;
+  padding: 0 12px;
+  margin: 2px 6px 2px 0;
+  border-radius: 7px;
+  background: linear-gradient(135deg, #f0f7f2, #e7f1ea);
+  border: 1px solid #d8e8dc;
+  color: #2f7d6e;
+  font-size: 12px;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: transform 0.18s ease, box-shadow 0.18s ease,
+    background 0.18s ease, border-color 0.18s ease;
+}
+.action-chip:hover {
+  transform: translateY(-1px);
+  background: linear-gradient(135deg, #e3f1e8, #d6eadd);
+  border-color: #a8ccb7;
+  box-shadow: 0 4px 10px rgba(47, 125, 110, 0.16);
+  color: #1f6559;
+}
+.action-chip.supervision-link {
+  margin-left: 0;
+}
+
+/* 表格操作列：统一左对齐、等距排列 */
+.el-table .actions-column .cell {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 6px;
+}
+.el-table .actions-column .cell .el-button + .el-button {
+  margin-left: 0;
+}
+
+/* =========================================================
+   全局微调：页面入场 / 卡片高光浮动 / 细节质感（全页面生效）
+   ========================================================= */
+html {
+  scroll-behavior: smooth;
+}
+::selection {
+  background: rgba(58, 166, 160, 0.28);
+  color: #1f4438;
+}
+
+/* 页面切换淡入上浮 */
+.page-content > * {
+  animation: pageIn 0.45s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+@keyframes pageIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* 通用面板：顶部渐变高光 + 悬浮 */
+.panel:not(.policy-chat):not(.conversation-list):not(.login-card) {
+  position: relative;
+  box-shadow: inset 0 3px 0 var(--grad-brand), var(--shadow-sm),
+    inset 0 1px 0 rgba(255, 255, 255, 0.7);
+  transition: box-shadow 0.3s ease, transform 0.3s ease;
+}
+.panel:not(.policy-chat):not(.conversation-list):not(.login-card):hover {
+  transform: translateY(-2px);
+  box-shadow: inset 0 3px 0 var(--grad-brand), var(--shadow-md),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+
+/* 面板小标题：前置渐变圆点装饰 */
+.panel-head h2::before,
+.panel > h2::before {
+  content: "";
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 9px;
+  vertical-align: 2px;
+  background: linear-gradient(135deg, #5fc7b0, #2f7d6e);
+  box-shadow: 0 0 0 4px rgba(95, 199, 176, 0.15);
+}
+
+/* 表格行 hover 高亮 */
+.el-table__body tr:hover > td.el-table__cell {
+  background: rgba(234, 244, 238, 0.7) !important;
+}
+
+/* 按钮按压缩放反馈 */
+.el-button:active:not(.is-disabled) {
+  transform: scale(0.97) !important;
+}
+
+/* 统计卡片数字轻浮动 */
+.stat-tile:hover .stat-tile-value,
+.metric-card:hover .metric-number {
+  transform: translateY(-2px);
+  transition: transform 0.3s ease;
+}
+
+/* 空状态装饰 */
+.empty-row::before,
+.chart-empty::before {
+  animation: emptyPulse 3s ease-in-out infinite;
+}
+@keyframes emptyPulse {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+/* 收紧页面整体顶部与标题下方距离 */
+.page-content {
+  padding-top: 18px !important;
+}
+.page-heading {
+  margin-bottom: 14px !important;
+}
+.page-heading h1 {
+  margin-bottom: 3px !important;
+}
+.page-heading p {
+  line-height: 1.45;
 }

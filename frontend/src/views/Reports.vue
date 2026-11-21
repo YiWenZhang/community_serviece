@@ -324,7 +324,7 @@ onBeforeUnmount(() => {
 <template>
   <div class="page-heading">
     <div>
-      <h1>统计报表</h1>
+      <h1>统计报表 📊</h1>
       <p>
         {{
           auth.can("report:read:community")

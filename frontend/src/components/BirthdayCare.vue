@@ -53,7 +53,10 @@ onMounted(load);
         "
         >查看关怀名单</el-button
       ><span class="hint">共 {{ total }} 名</span
-      ><router-link v-if="auth.can('notice:rule:manage')" to="/rules"
+      ><router-link
+        v-if="auth.can('notice:rule:manage')"
+        to="/rules"
+        class="action-chip"
         >配置自动通知规则 →</router-link
       >
     </div>

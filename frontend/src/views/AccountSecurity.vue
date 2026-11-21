@@ -53,7 +53,7 @@ async function save() {
 <template>
   <div class="page-heading">
     <div>
-      <h1>修改密码</h1>
+      <h1>修改密码 🔐</h1>
       <p>管理自己的登录密码，所有岗位均可使用。</p>
     </div>
   </div>

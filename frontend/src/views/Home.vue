@@ -16,10 +16,10 @@ const community = computed(() =>
       <h1>
         {{
           admin
-            ? "工作监督"
+            ? "工作监督 📋"
             : auth.can("notice:read")
-              ? "我的工作"
-              : "统计工作台"
+              ? "我的工作 💼"
+              : "统计工作台 📊"
         }}
       </h1>
       <p>
@@ -40,7 +40,7 @@ const community = computed(() =>
     <p>
       按社区、经办人、业务类型和时间范围查看服务指标，导出 Excel / Word 报表。
     </p>
-    <router-link to="/reports" class="text-link">进入统计报表 →</router-link>
+    <router-link to="/reports" class="action-chip">进入统计报表 →</router-link>
   </section>
   <BirthdayCare v-if="auth.can('elder:read')" />
   <section v-if="community" class="panel community-brief">

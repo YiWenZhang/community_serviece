@@ -217,7 +217,7 @@ onMounted(async () => {
 <template>
   <div class="page-heading business-heading">
     <div>
-      <h1>{{ admin ? "跟进进度" : "服务跟进" }}</h1>
+      <h1>{{ admin ? "跟进进度 📈" : "服务跟进 🤝" }}</h1>
       <p>
         {{
           admin

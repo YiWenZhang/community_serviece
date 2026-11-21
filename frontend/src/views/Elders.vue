@@ -311,7 +311,7 @@ async function saveTransfer() {
 <template>
   <div class="page-heading">
     <div>
-      <h1>老人档案</h1>
+      <h1>老人档案 👵</h1>
       <p>
         {{
           auth.user?.roles?.includes("ADMIN")

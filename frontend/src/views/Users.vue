@@ -130,7 +130,7 @@ onMounted(async () => {
 <template>
   <div class="page-heading">
     <div>
-      <h1>用户管理</h1>
+      <h1>用户管理 👥</h1>
       <p>
         管理全部工作人员，按岗位授予权限，并分配网格员可进入的一个或多个社区。
       </p>

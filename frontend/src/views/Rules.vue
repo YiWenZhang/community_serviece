@@ -145,7 +145,7 @@ onMounted(async () => {
 <template>
   <div class="page-heading business-heading">
     <div>
-      <h1>自动规则配置</h1>
+      <h1>自动规则配置 ⚙️</h1>
       <p>
         配置生日关怀、疫苗提醒的筛选条件，系统按档案负责人分配联系工作。临时讲座等事项由网格员在“通知办理”中登记。
       </p>

@@ -115,14 +115,14 @@ onMounted(load);
               path: '/notices',
               query: { ownerId: row.id, type: filters.noticeType },
             }"
-            class="text-link"
+            class="action-chip"
             >联系进度</router-link
           ><router-link
             :to="{
               path: '/followups',
               query: { ownerId: row.id, type: filters.noticeType },
             }"
-            class="text-link supervision-link"
+            class="action-chip"
             >跟进进度</router-link
           ></template
         ></el-table-column
