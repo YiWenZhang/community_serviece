@@ -29,8 +29,13 @@ async function submit() {
         <span class="brand-mark">邻</span
         ><span>邻里<small>社区银龄服务</small></span>
       </div>
+      <div class="floating-decor" aria-hidden="true">
+        <span class="float-leaf">🌿</span>
+        <span class="float-heart">💚</span>
+        <span class="float-spark">✨</span>
+      </div>
       <div class="login-copy">
-        <span class="eyebrow">COMMUNITY CARE</span>
+        <span class="eyebrow">COMMUNITY CARE 🌿</span>
         <h1>用心服务，<br />让关怀更近一步。🌿</h1>
         <p>
           从一份档案、一次通知到一次跟进，<br />记录每一份服务，让社区关怀有始有终。
@@ -47,8 +52,8 @@ async function submit() {
     </section>
     <section class="login-panel">
       <form class="login-card" @submit.prevent="submit">
-        <span class="eyebrow">欢迎回来</span>
-        <h2>登录工作空间</h2>
+        <span class="eyebrow">欢迎回来 👋</span>
+        <h2>登录工作空间 💼</h2>
         <p class="muted">使用你的应用账号，开始今天的社区服务。</p>
         <label class="field-label" for="username">应用账号</label
         ><el-input
