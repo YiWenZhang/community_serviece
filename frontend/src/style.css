@@ -2343,6 +2343,40 @@ nav a.active::before {
   }
 }
 
+/* =========================================================
+   表格：表头醒目 + 内容文字加大
+   ========================================================= */
+.el-table {
+  --el-table-header-bg-color: #eef5ee;
+  --el-table-header-text-color: #24483e;
+}
+.el-table th.el-table__cell {
+  font-size: 13px !important;
+  font-weight: 700 !important;
+  color: #24483e !important;
+  letter-spacing: 0.3px;
+  padding: 14px 0 !important;
+  background: linear-gradient(180deg, #f4f8f3, #eaf2e9) !important;
+}
+.el-table th.el-table__cell .cell {
+  font-size: 13px !important;
+  font-weight: 700 !important;
+  color: #24483e !important;
+}
+.el-table td.el-table__cell .cell {
+  font-size: 13px;
+  color: #354d42;
+  line-height: 1.65;
+}
+.report-data-table td.el-table__cell .cell {
+  font-size: 14px;
+  font-weight: 500;
+  color: #2e4a3d;
+}
+.report-data-table .el-table__body-wrapper::-webkit-scrollbar {
+  width: 10px;
+}
+
 /* Daily work: visible business, next action and urgency. */
 .work-guide,
 .work-launches {
@@ -2803,4 +2837,89 @@ nav a.active::before {
   .mobile-work-list .el-button + .el-button {
     margin-left: 0;
   }
+}
+
+/* 指标明细卡片标题：主标识醒目 + 分类破折号加深 */
+.metric-card-head {
+  flex-wrap: wrap;
+  gap: 4px 10px;
+}
+.metric-card-head .metric-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #1f4438;
+}
+.metric-card-head .metric-dimension {
+  font-size: 14px;
+  font-weight: 700;
+  color: #2f7d6e;
+}
+.metric-card-uniform {
+  min-height: 168px;
+  display: flex;
+  flex-direction: column;
+}
+.metric-card-uniform .metric-number {
+  margin-top: 10px;
+}
+.metric-card-uniform .metric-number small {
+  font-size: 13px;
+  font-weight: 500;
+  color: #8a9a8f;
+  margin-left: 6px;
+  -webkit-text-fill-color: #8a9a8f;
+}
+.metric-card-clickable {
+  cursor: pointer;
+}
+.metric-card-clickable::after {
+  content: "";
+  position: absolute;
+  right: 14px;
+  bottom: 14px;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #e7f3ef, #d8ebe1);
+  box-shadow: 0 2px 8px rgba(47, 125, 110, 0.16);
+}
+.metric-card-clickable:hover {
+  border-color: #a8ccb7;
+}
+.metric-view-hint {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #3f8a78 !important;
+  font-weight: 600;
+  margin-top: 16px;
+}
+.metric-detail-dialog .el-dialog__header {
+  border-bottom: 1px solid #e8ede9;
+  padding: 20px 24px;
+}
+.metric-detail-dialog .el-dialog__title {
+  font-size: 19px;
+  font-weight: 700;
+  color: #24483e;
+}
+.metric-detail-dialog .el-dialog__body {
+  padding: 20px 28px 28px;
+}
+.metric-detail-summary {
+  font-size: 13px;
+  color: #6b7d73;
+  padding: 10px 14px;
+  background: linear-gradient(135deg, #f6faf3, #eef4ec);
+  border-radius: 8px;
+  margin-bottom: 18px;
+}
+.metric-detail-summary b {
+  color: #2f7d6e;
+  font-weight: 700;
+}
+.metric-detail-chart {
+  max-height: 56vh;
+  overflow-y: auto;
+  padding-right: 6px;
 }

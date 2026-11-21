@@ -26,6 +26,7 @@ import Status from "../components/Status.vue";
 import BarChart from "../components/BarChart.vue";
 import DonutChart from "../components/DonutChart.vue";
 import StatCard from "../components/StatCard.vue";
+import MetricBars from "../components/MetricBars.vue";
 const auth = useAuth(),
   reportCommunity = ref(""),
   month = ref(new Date().toLocaleDateString("sv-SE").slice(0, 7)),
@@ -34,7 +35,9 @@ const auth = useAuth(),
   exporting = ref(false),
   error = ref(""),
   exports = ref<Row[]>([]),
-  detailsOpen = ref(false);
+  detailsOpen = ref(false),
+  detailGroup = ref<MetricGroup | null>(null),
+  detailOpen = ref(false);
 const filters = reactive({ ownerId: "", noticeType: "", campaignId: "" }),
   dateMode = ref("month"),
   dateRange = ref<string[]>([]),
@@ -180,6 +183,51 @@ const coreCards = computed(() =>
     };
   }),
 );
+type MetricGroup = {
+  code: string;
+  title: string;
+  single: boolean;
+  value: any;
+  numerator: any;
+  denominator: any;
+  items: { label: string; value: number; display: string }[];
+};
+const metricGroups = computed<MetricGroup[]>(() => {
+  const map = new Map<string, Row[]>();
+  for (const m of data.value?.metrics || []) {
+    const code = String(m.code);
+    if (!map.has(code)) map.set(code, []);
+    map.get(code)!.push(m);
+  }
+  return Array.from(map.entries()).map(([code, metrics]) => {
+    const single = metrics.length === 1 && metrics[0].dimension === "ALL";
+    const items = metrics.map((m) => {
+      const isCount = m.value == null;
+      return {
+        label:
+          m.dimension && m.dimension !== "ALL"
+            ? dimensionText(m.dimension)
+            : "合计",
+        value: Number(isCount ? m.numerator : Number(m.value) * 100) || 0,
+        display: isCount ? String(m.numerator) : percent(m.value),
+      };
+    });
+    const first = metrics[0];
+    return {
+      code,
+      title: metricNames[code] || code,
+      single,
+      value: first.value,
+      numerator: first.numerator,
+      denominator: first.denominator,
+      items,
+    };
+  });
+});
+function openDetail(group: MetricGroup) {
+  detailGroup.value = group;
+  detailOpen.value = true;
+}
 async function load() {
   if (!month.value) return;
   if (dateMode.value === "range" && dateRange.value?.length !== 2) {
@@ -427,8 +475,10 @@ onBeforeUnmount(() => {
       </div>
     </div>
     <el-table
+      class="report-data-table"
       :data="data.vaccineSummary || []"
       empty-text="所选范围暂无已核验的疫苗记录"
+      max-height="360"
       ><el-table-column
         prop="campaignName"
         label="疫苗服务周期"
@@ -459,8 +509,10 @@ onBeforeUnmount(() => {
       </div>
     </div>
     <el-table
+      class="report-data-table"
       :data="data.serviceGaps || []"
       empty-text="本期已登记资料暂无待办缺口"
+      max-height="360"
       ><el-table-column
         prop="title"
         label="服务事项"
@@ -484,42 +536,64 @@ onBeforeUnmount(() => {
       >{{ detailsOpen ? "收起指标明细" : "查看指标明细" }}</el-button
     >
     <span class="details-count"
-      >共 {{ data.metrics?.length || 0 }} 项指标 · 含分子与分母</span
+      >共 {{ metricGroups.length }} 类指标 ·
+      {{ data.metrics?.length || 0 }} 项明细</span
     >
   </div>
   <el-collapse-transition>
     <section v-show="detailsOpen" v-loading="loading" class="metrics-grid">
       <article
-        v-for="(m, index) in data?.metrics || []"
-        :key="m.code + m.dimension"
-        class="metric-card"
-        :style="{ animationDelay: `${Math.min(Number(index), 12) * 0.04}s` }"
+        v-for="(group, index) in metricGroups"
+        :key="group.code"
+        class="metric-card metric-card-uniform"
+        :class="{ 'metric-card-clickable': !group.single }"
+        :style="{ animationDelay: `${Math.min(index, 12) * 0.04}s` }"
+        @click="!group.single && openDetail(group)"
       >
         <div class="metric-card-head">
-          <span>{{ metricNames[m.code] || m.code }}</span>
-          <small v-if="m.dimension !== 'ALL'">{{
-            dimensionText(m.dimension)
-          }}</small>
-          <el-icon v-else class="metric-card-icon"><DataAnalysis /></el-icon>
+          <span class="metric-title">{{ group.title }}</span>
         </div>
-        <div class="metric-number">{{ percent(m.value) }}</div>
-        <el-progress
-          class="metric-progress"
-          :percentage="
-            m.value == null
-              ? 0
-              : Math.min(100, Math.max(0, Number(m.value) * 100))
-          "
-          :show-text="false"
-          :stroke-width="8"
-          color="#5fc7b0"
-        />
-        <p class="metric-denom">
-          分子 <b>{{ m.numerator }}</b> <span>·</span> 分母 {{ m.denominator }}
-        </p>
+        <template v-if="group.single">
+          <div class="metric-number">{{ percent(group.value) }}</div>
+          <el-progress
+            class="metric-progress"
+            :percentage="
+              group.value == null
+                ? 0
+                : Math.min(100, Math.max(0, Number(group.value) * 100))
+            "
+            :show-text="false"
+            :stroke-width="8"
+            color="#5fc7b0"
+          />
+          <p class="metric-denom">
+            分子 <b>{{ group.numerator }}</b> <span>·</span> 分母
+            {{ group.denominator }}
+          </p>
+        </template>
+        <template v-else>
+          <div class="metric-number">{{ group.items.length }}<small>类明细</small></div>
+          <p class="metric-denom metric-view-hint">
+            <el-icon><DataAnalysis /></el-icon> 点击查看各分类比例对比
+          </p>
+        </template>
       </article>
     </section>
   </el-collapse-transition>
+  <el-dialog
+    v-model="detailOpen"
+    :title="detailGroup?.title || '指标明细'"
+    width="760px"
+    class="metric-detail-dialog"
+    destroy-on-close
+  >
+    <div v-if="detailGroup" class="metric-detail-summary">
+      <span>共 <b>{{ detailGroup.items.length }}</b> 个分类 · 比例按各项数值相对最大值展示</span>
+    </div>
+    <div class="metric-detail-chart">
+      <MetricBars :items="detailGroup?.items || []" />
+    </div>
+  </el-dialog>
   <section class="panel report-list">
     <div class="panel-head">
       <div>
